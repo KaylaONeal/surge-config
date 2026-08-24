@@ -1,0 +1,17 @@
+name: check-rules
+
+on:
+  push:
+  pull_request:
+  schedule:
+    # Daily 03:00 UTC - catches upstream lists that get renamed or deleted.
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify every RULE-SET URL is reachable
+        run: ./scripts/check-rules.sh

@@ -1,0 +1,115 @@
+# NAME: AI-Extra
+# DESC: Supplementary AI/LLM domains not covered by blackmatrix7 upstream lists
+# UPDATED: 2026-08-25
+# TYPE: Surge RULE-SET (Shadowrocket compatible)
+
+# --- OpenAI adjacent ---
+DOMAIN-SUFFIX,openai.com
+DOMAIN-SUFFIX,oaistatic.com
+DOMAIN-SUFFIX,oaiusercontent.com
+DOMAIN-SUFFIX,chatgpt.com
+DOMAIN-SUFFIX,sora.com
+DOMAIN-SUFFIX,openaiapi-site.azureedge.net
+
+# --- Anthropic ---
+DOMAIN-SUFFIX,anthropic.com
+DOMAIN-SUFFIX,claude.ai
+DOMAIN-SUFFIX,claudeusercontent.com
+
+# --- Google AI ---
+DOMAIN-SUFFIX,gemini.google.com
+DOMAIN-SUFFIX,bard.google.com
+DOMAIN-SUFFIX,aistudio.google.com
+DOMAIN-SUFFIX,generativelanguage.googleapis.com
+DOMAIN-SUFFIX,makersuite.google.com
+DOMAIN-SUFFIX,deepmind.com
+DOMAIN-SUFFIX,deepmind.google
+
+# --- xAI / Grok ---
+DOMAIN-SUFFIX,x.ai
+DOMAIN-SUFFIX,grok.com
+DOMAIN,grok.x.com
+
+# --- Perplexity ---
+DOMAIN-SUFFIX,perplexity.ai
+DOMAIN-SUFFIX,pplx.ai
+DOMAIN-SUFFIX,perplexity.com
+
+# --- Coding agents / IDE ---
+DOMAIN-SUFFIX,cursor.sh
+DOMAIN-SUFFIX,cursor.com
+DOMAIN-SUFFIX,codeium.com
+DOMAIN-SUFFIX,windsurf.com
+DOMAIN-SUFFIX,tabnine.com
+DOMAIN-SUFFIX,sourcegraph.com
+DOMAIN-SUFFIX,githubcopilot.com
+DOMAIN-SUFFIX,copilot.microsoft.com
+DOMAIN-SUFFIX,devin.ai
+DOMAIN-SUFFIX,v0.dev
+DOMAIN-SUFFIX,bolt.new
+DOMAIN-SUFFIX,lovable.dev
+DOMAIN-SUFFIX,replit.com
+
+# --- Model hosts / inference ---
+DOMAIN-SUFFIX,huggingface.co
+DOMAIN-SUFFIX,hf.co
+DOMAIN-SUFFIX,openrouter.ai
+DOMAIN-SUFFIX,groq.com
+DOMAIN-SUFFIX,together.ai
+DOMAIN-SUFFIX,together.xyz
+DOMAIN-SUFFIX,fireworks.ai
+DOMAIN-SUFFIX,replicate.com
+DOMAIN-SUFFIX,replicate.delivery
+DOMAIN-SUFFIX,modal.com
+DOMAIN-SUFFIX,runpod.io
+DOMAIN-SUFFIX,mistral.ai
+DOMAIN-SUFFIX,cohere.com
+DOMAIN-SUFFIX,cohere.ai
+DOMAIN-SUFFIX,ai21.com
+DOMAIN-SUFFIX,scale.com
+DOMAIN-SUFFIX,langchain.com
+DOMAIN-SUFFIX,smith.langchain.com
+DOMAIN-SUFFIX,langfuse.com
+DOMAIN-SUFFIX,wandb.ai
+DOMAIN-SUFFIX,vercel.ai
+
+# --- Image / video / audio gen ---
+DOMAIN-SUFFIX,midjourney.com
+DOMAIN-SUFFIX,stability.ai
+DOMAIN-SUFFIX,runwayml.com
+DOMAIN-SUFFIX,pika.art
+DOMAIN-SUFFIX,luma-ai.com
+DOMAIN-SUFFIX,lumalabs.ai
+DOMAIN-SUFFIX,elevenlabs.io
+DOMAIN-SUFFIX,suno.com
+DOMAIN-SUFFIX,suno.ai
+DOMAIN-SUFFIX,udio.com
+DOMAIN-SUFFIX,heygen.com
+DOMAIN-SUFFIX,synthesia.io
+DOMAIN-SUFFIX,ideogram.ai
+DOMAIN-SUFFIX,leonardo.ai
+DOMAIN-SUFFIX,civitai.com
+
+# --- Chat frontends / misc ---
+DOMAIN-SUFFIX,poe.com
+DOMAIN-SUFFIX,quora.com
+DOMAIN-SUFFIX,character.ai
+DOMAIN-SUFFIX,inflection.ai
+DOMAIN-SUFFIX,pi.ai
+DOMAIN-SUFFIX,you.com
+DOMAIN-SUFFIX,phind.com
+DOMAIN-SUFFIX,chub.ai
+DOMAIN-SUFFIX,jan.ai
+DOMAIN-SUFFIX,ollama.com
+DOMAIN-SUFFIX,ollama.ai
+DOMAIN-SUFFIX,lmstudio.ai
+DOMAIN-SUFFIX,llamaindex.ai
+DOMAIN-SUFFIX,pinecone.io
+DOMAIN-SUFFIX,weaviate.io
+
+# --- Auth / infra AI vendors commonly gate on ---
+DOMAIN-SUFFIX,auth0.com
+DOMAIN-SUFFIX,statsigapi.net
+DOMAIN-SUFFIX,featuregates.org
+DOMAIN-SUFFIX,intercom.io
+DOMAIN-SUFFIX,segment.io
