@@ -1,6 +1,6 @@
 # NAME: AI-Extra
-# DESC: Supplementary AI/LLM domains not covered by blackmatrix7 upstream lists
-# UPDATED: 2026-08-25
+# DESC: Maintained AI/LLM product and exact dependency domains
+# UPDATED: 2026-08-31
 # TYPE: Surge RULE-SET (Shadowrocket compatible)
 
 # --- OpenAI adjacent ---
@@ -9,21 +9,42 @@ DOMAIN-SUFFIX,oaistatic.com
 DOMAIN-SUFFIX,oaiusercontent.com
 DOMAIN-SUFFIX,chatgpt.com
 DOMAIN-SUFFIX,sora.com
+DOMAIN-SUFFIX,oaistatsig.com
 DOMAIN-SUFFIX,openaiapi-site.azureedge.net
 DOMAIN-SUFFIX,ai.com
 DOMAIN-SUFFIX,chatgpt.livekit.cloud
 DOMAIN-SUFFIX,turn.livekit.cloud
+DOMAIN-SUFFIX,host.livekit.cloud
 DOMAIN-SUFFIX,openaicom.imgix.net
 DOMAIN,browser-intake-datadoghq.com
+DOMAIN,rum.browser-intake-datadoghq.com
+DOMAIN,challenges.cloudflare.com
+DOMAIN,cdn.openaimerge.com
+DOMAIN,cdn.workos.com
+DOMAIN,forwarder.workos.com
+DOMAIN,images.workoscdn.com
+DOMAIN,setup.workos.com
+DOMAIN,workos.imgix.net
 DOMAIN,openai-api.arkoselabs.com
+DOMAIN,client-api.arkoselabs.com
 DOMAIN,openaicom-api-bdcpf8c6d2e9atf6.z01.azurefd.net
 DOMAIN,openaicomproductionae4b.blob.core.windows.net
 DOMAIN,production-openaicom-storage.azureedge.net
+DOMAIN,js.intercomcdn.com
+DOMAIN,js.stripe.com
+DOMAIN,o207216.ingest.sentry.io
+DOMAIN,o33249.ingest.sentry.io
+DOMAIN,humb.apple.com
+DOMAIN-SUFFIX,ct.sendgrid.net
 
 # --- Anthropic ---
 DOMAIN-SUFFIX,anthropic.com
 DOMAIN-SUFFIX,claude.ai
+DOMAIN-SUFFIX,claude.com
 DOMAIN-SUFFIX,claudeusercontent.com
+DOMAIN-SUFFIX,claude.site
+DOMAIN-SUFFIX,claudemcpclient.com
+DOMAIN-SUFFIX,claudemcpcontent.com
 
 # --- Google AI ---
 DOMAIN-SUFFIX,gemini.google.com
@@ -118,10 +139,3 @@ DOMAIN-SUFFIX,lmstudio.ai
 DOMAIN-SUFFIX,llamaindex.ai
 DOMAIN-SUFFIX,pinecone.io
 DOMAIN-SUFFIX,weaviate.io
-
-# --- Auth / infra AI vendors commonly gate on ---
-DOMAIN-SUFFIX,auth0.com
-DOMAIN-SUFFIX,statsigapi.net
-DOMAIN-SUFFIX,featuregates.org
-DOMAIN-SUFFIX,intercom.io
-DOMAIN-SUFFIX,segment.io
