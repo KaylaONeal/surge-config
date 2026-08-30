@@ -1,0 +1,15 @@
+#!name=Direct-Extra
+#!desc=Personal and work domains that must bypass the proxy
+#!updated=2026-08-31
+
+DOMAIN-SUFFIX,kuaishou.com
+DOMAIN-SUFFIX,kuaishoupay.com
+DOMAIN-SUFFIX,corp.kuaishou.com
+DOMAIN-SUFFIX,btwuji.com
+DOMAIN-SUFFIX,eskimo.travel
+DOMAIN-SUFFIX,futuesop.com
+DOMAIN-SUFFIX,apple.com
+DOMAIN-SUFFIX,qq.com
+DOMAIN-SUFFIX,wechat.com
+DOMAIN-SUFFIX,weixin.qq.com
+

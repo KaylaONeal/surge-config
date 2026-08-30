@@ -1,0 +1,13 @@
+#!name=macOS-Reject
+#!desc=macOS processes that must not use the network through Surge
+#!updated=2026-08-31
+
+PROCESS-NAME,"/Applications/Cloudflare WARP.app/Contents/Resources/CloudflareWARP"
+PROCESS-NAME,/Applications/Kit.app/Contents/Resources/TunnelService/kitService
+PROCESS-NAME,"/Library/Application Support/ESET/ESET Inspect Connector.app/Contents/MacOS/esets_eia"
+PROCESS-NAME,"/Applications/ESET Management Agent.app/Contents/MacOS/ERAAgent"
+PROCESS-NAME,"/Applications/ESET Endpoint Security.app/Contents/MacOS/updated"
+PROCESS-NAME,"/Applications/ESET Endpoint Security.app/Contents/MacOS/scand"
+PROCESS-NAME,/usr/local/bin/KepmPackage/KepmUpdater
+PROCESS-NAME,"/Library/Application Support/DLP3.0/CGEDataService.app/Contents/PlugIns/CGEControl"
+PROCESS-NAME,"/Library/Application Support/DLP3.0/CGEComm.app/Contents/MacOS/CGEComm"

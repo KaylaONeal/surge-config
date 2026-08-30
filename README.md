@@ -1,71 +1,107 @@
 # surge-config
 
-Single rule set for Surge (macOS/iOS) and Shadowrocket, shared across devices via one URL.
+Git-managed Surge configuration shared by iOS and macOS. Real node topology is
+tracked; passwords and other authentication material are not.
 
 ## Routing policy
 
-| Traffic | Policy group | Exit |
+| Traffic | Policy | Default exit |
 |---|---|---|
-| AI / LLM services (OpenAI, Claude, Gemini, Copilot, Grok, Perplexity, Cursor, HuggingFace, …) | `AI` | **US only** — `fallback` group, never crosses to KR/UK |
-| Other overseas services (Google, YouTube, Telegram, X, GitHub, Netflix, …) | `Proxy` / `Streaming` / `Telegram` | **Fastest of US / KR / UK** — `url-test`, retested every 300 s |
-| Domestic (ChinaMax list + GEOIP CN) | `Domestic` | DIRECT |
-| Everything unmatched | `Fallback` | **DIRECT** |
+| AI / LLM services | `AI` | US-only fallback pool |
+| Other overseas services | `Proxy`, `Streaming`, `Telegram` | JP first, with cross-region and manual alternatives |
+| Domestic services | `Domestic` | DIRECT |
+| Ads | `AdBlock` | REJECT, switchable to DIRECT |
+| Cloudflare fallback | `CF Edge Auto` | Best of direct/CT/CU/CM EdgeTunnel ingress |
+| Everything unmatched | `Fallback` | DIRECT |
 
-`AI` uses `fallback`, not `url-test`: latency is irrelevant, exit country is not.
-A US node only gets skipped when it is genuinely dead, so an AI request can never
-egress from Korea and trip an account-region check.
+AI rules are evaluated before Google, Microsoft and Global rule sets. The
+`US Only` group never falls back to JP or KR.
 
-## Files
+## Repository layout
 
-| File | Use |
-|---|---|
-| `surge.conf` | Surge 5. Has `#!MANAGED-CONFIG` — auto-refreshes daily. |
-| `shadowrocket.conf` | Shadowrocket. Same rules, Surge-only keys stripped. |
-| `rules/ai-extra.list` | Self-maintained AI domains that upstream lists miss. |
-| `scripts/check-rules.sh` | Verifies every RULE-SET URL returns 200. |
+| Path | Purpose | Tracked |
+|---|---|---|
+| `surge.conf` | Shared Surge profile template for iOS and macOS | Yes |
+| `shadowrocket.conf` | Shadowrocket profile template | Yes |
+| `private/nodes.md` | Real protocol/server/port/SNI inventory | Yes |
+| `private/secrets.example.env` | Empty authentication-variable template | Yes |
+| `private/secrets.env` | Local passwords, UUID and usernames | **No** |
+| `rules/*.list` | Shared AI, direct, reject and macOS process rules | Yes |
+| `build/*.conf` | Rendered usable profiles containing credentials | **No** |
 
-## Install
+The raw phone export is intentionally ignored because it contains proxy
+credentials, API access tokens and a complete MITM CA private key.
 
-Surge → Profile → Download from URL:
+## Authentication boundary
 
+These values are treated as secrets and never committed:
+
+- proxy passwords and usernames;
+- TUIC UUIDs and other authentication identifiers;
+- Surge HTTP API and external-controller tokens;
+- MITM/keystore private keys and their passphrases.
+- protected rendered-profile URLs when they contain an access token.
+
+The committed profiles use placeholders such as `__HTTPS_PASSWORD__`. They are
+not directly usable by Surge until rendered.
+
+Create the local secret file and render:
+
+```bash
+cp private/secrets.example.env private/secrets.env
+$EDITOR private/secrets.env
+./scripts/render-config.sh
 ```
-https://raw.githubusercontent.com/KaylaONeal/surge-config/main/surge.conf
+
+Usable profiles are written to `build/` with mode `0600`.
+
+## Remote loading limitation
+
+Surge managed profiles are downloaded as final configuration text. Surge does
+not substitute local environment variables into a remote profile, so a Git
+file that excludes passwords cannot simultaneously be a directly usable full
+profile.
+
+There are two safe deployment choices:
+
+1. Render locally and import `build/surge.conf`; all remote `RULE-SET` files
+   continue updating independently.
+2. Render in a protected deployment service and serve the result from an
+   authenticated URL. The generated result must not be committed back to Git.
+
+Making the GitHub repository private protects tracked metadata, but by itself
+does not inject credentials and does not guarantee Surge can authenticate to a
+private GitHub raw URL.
+
+`SURGE_MANAGED_URL` must be the protected URL that returns the rendered
+`surge.conf`. The renderer writes it into `#!MANAGED-CONFIG`, so the initial
+one-click import and every later automatic update use the same endpoint.
+
+## Platform-specific behavior
+
+One Surge profile is used for both platforms. `#!IOS-ONLY` enables hotspot,
+APNs and cellular handling on iOS. `#!MACOS-ONLY` applies the work/DLP process
+reject list only on macOS.
+
+The node pool assignments were imported from `surgeconf-260830.conf`. Ingress
+hostnames do not prove egress country; verify every node's public exit IP before
+depending on the `AI` US-only guarantee. See `private/nodes.md` for the items
+that still require verification.
+
+## Validation
+
+```bash
+./scripts/check-rules.sh
 ```
 
-Shadowrocket → Config → Add from URL:
+The GitHub Action runs the same remote-rule check daily.
 
-```
-https://raw.githubusercontent.com/KaylaONeal/surge-config/main/shadowrocket.conf
-```
+## One-click install service
 
-Then edit **only** the `[Proxy]` section with your own nodes.
+The deployed configuration service is hosted at `config.fallback.page`. Its
+unguessable path token is stored only in `private/config-service.env`. Opening
+that protected path in Safari shows buttons for Surge and Shadowrocket.
 
-## Node naming (required)
-
-Policy groups reference node names literally. Keep the region prefix:
-
-```
-US HTTPS 01 = https, us1.example.com, 443, USER, PASS, sni=us1.example.com
-US HY2 01   = hysteria2, us1.example.com, 8443, password=PASS, sni=us1.example.com, download-bandwidth=200
-```
-
-Adding a second US node means adding `US HY2 02` to the `[Proxy]` section **and**
-to the `US Auto`, `US Only`, and `Fastest` groups.
-
-> Credentials live in your local profile copy, not in this repo. If you paste real
-> node passwords into a file here, make the repo private and use a token-authenticated
-> raw URL — a public repo means anyone can read and use your nodes.
-
-## Correctness & freshness
-
-- Rules come from [blackmatrix7/ios_rule_script](https://github.com/blackmatrix7/ios_rule_script) (updated near-daily) via remote `RULE-SET`, so the rule bodies refresh without editing this repo.
-- `#!MANAGED-CONFIG interval=86400` re-pulls the profile skeleton once a day.
-- A daily GitHub Action runs `scripts/check-rules.sh`; if upstream renames or deletes a list, CI turns red instead of the rule silently vanishing.
-- Rule order matters: AI sets are evaluated **before** `Google`/`Microsoft`/`Global`, otherwise `gemini.google.com` would be swallowed by the Google set and routed to a non-US node.
-
-## Known trade-off
-
-`FINAL,Fallback` sends unmatched traffic DIRECT, per design. A brand-new overseas
-site nobody has listed yet will therefore fail rather than silently proxy.
-Fix in one tap: switch the `Fallback` group from `DIRECT` to `Proxy` in the app UI,
-or add a rule to `rules/ai-extra.list` / open a PR.
+`edge.fallback.page` hosts the separately deployed EdgeTunnel Worker. Its
+authentication values are Cloudflare Worker secrets with an ignored local
+recovery copy in `private/edgetunnel.env`.

@@ -1,21 +1,32 @@
 #!/usr/bin/env bash
-# Verifies every RULE-SET URL referenced by the configs still resolves (HTTP 200).
-# Upstream repos rename/remove lists occasionally; a dead RULE-SET silently
-# drops all its rules, which is how "AI leaks to a KR node" happens.
 set -uo pipefail
-cd "$(dirname "$0")/.."
 
-fail=0
-urls=$(grep -ho 'https://[^,]*\.\(list\|txt\)' surge.conf shadowrocket.conf | sort -u)
+repo_dir=$(cd "$(dirname "$0")/.." && pwd)
+repo_raw_prefix=https://raw.githubusercontent.com/KaylaONeal/surge-config/main/
+failed=0
 
-for u in $urls; do
-  code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 25 --retry 2 "$u")
-  if [ "$code" = "200" ]; then
-    printf 'OK   %s\n' "$u"
+urls=$(
+  rg --no-filename --only-matching 'https://[^,[:space:]]+\.(list|txt)' \
+    "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf" |
+    sort -u
+)
+
+for url in $urls; do
+  if [[ "$url" == "$repo_raw_prefix"* ]]; then
+    relative_path=${url#"$repo_raw_prefix"}
+    if [[ -f "$repo_dir/$relative_path" ]]; then
+      echo "OK $url (local)"
+      continue
+    fi
+  fi
+
+  status=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 25 --retry 2 "$url")
+  if [[ "$status" == 200 ]]; then
+    echo "OK $url"
   else
-    printf 'FAIL %s (HTTP %s)\n' "$u" "$code"
-    fail=1
+    echo "FAIL $url (HTTP $status)" >&2
+    failed=1
   fi
 done
 
-exit $fail
+exit "$failed"

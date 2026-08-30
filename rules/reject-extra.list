@@ -1,0 +1,8 @@
+#!name=Reject-Extra
+#!desc=Personal and work domains that must be rejected
+#!updated=2026-08-31
+
+DOMAIN,adlp.corp.kuaishou.com
+DOMAIN,kepm.corp.kuaishou.com
+DOMAIN-SUFFIX,ksapisrv.com
+

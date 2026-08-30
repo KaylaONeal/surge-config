@@ -1,0 +1,14 @@
+# Raw device exports contain proxy credentials, API tokens and MITM keys.
+surgeconf-*.conf
+
+# Authentication material used by scripts/render-config.sh.
+private/secrets.env
+private/edgetunnel.env
+private/config-service.env
+
+# Rendered, usable profiles contain credentials.
+build/
+
+# Certificate/private-key exports.
+*.p12
+*.mobileconfig

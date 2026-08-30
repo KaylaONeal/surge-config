@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "surge-config-service",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-08-30",
+  "routes": [
+    {
+      "pattern": "config.fallback.page",
+      "custom_domain": true
+    }
+  ],
+  "observability": {
+    "enabled": false
+  }
+}
+
