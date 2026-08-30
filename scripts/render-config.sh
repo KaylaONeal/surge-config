@@ -2,12 +2,13 @@
 set -euo pipefail
 
 repo_dir=$(cd "$(dirname "$0")/.." && pwd)
-secret_file=${1:-"$repo_dir/private/secrets.env"}
+config_home=${SURGE_CONFIG_HOME:-"$HOME/.config/surge-config"}
+secret_file=${1:-"$config_home/credentials.env"}
 output_dir=${2:-"$repo_dir/build"}
 
 if [[ ! -f "$secret_file" ]]; then
   echo "Missing secrets file: $secret_file" >&2
-  echo "Copy private/secrets.example.env to private/secrets.env first." >&2
+  echo "Create $config_home/credentials.env from private/secrets.example.env first." >&2
   exit 1
 fi
 

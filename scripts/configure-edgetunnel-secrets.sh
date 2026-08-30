@@ -3,8 +3,12 @@ set -euo pipefail
 
 repo_dir=$(cd "$(dirname "$0")/.." && pwd)
 worker_config=${1:?Usage: configure-edgetunnel-secrets.sh <wrangler-config>}
-secret_file="$repo_dir/private/edgetunnel.env"
+config_home=${SURGE_CONFIG_HOME:-"$HOME/.config/surge-config"}
+secret_file="$config_home/edgetunnel.env"
 wrangler_version=4.127.1
+
+mkdir -p "$config_home"
+chmod 700 "$config_home"
 
 admin_value=$(openssl rand -hex 24)
 key_value=$(openssl rand -hex 16)

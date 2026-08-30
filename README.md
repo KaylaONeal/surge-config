@@ -25,7 +25,7 @@ AI rules are evaluated before Google, Microsoft and Global rule sets. The
 | `shadowrocket.conf` | Shadowrocket profile template | Yes |
 | `private/nodes.md` | Real protocol/server/port/SNI inventory | Yes |
 | `private/secrets.example.env` | Empty authentication-variable template | Yes |
-| `private/secrets.env` | Local passwords, UUID and usernames | **No** |
+| `~/.config/surge-config/credentials.env` | Local passwords and authentication IDs | Outside repository |
 | `rules/*.list` | Shared AI, direct, reject and macOS process rules | Yes |
 | `build/*.conf` | Rendered usable profiles containing credentials | **No** |
 
@@ -45,11 +45,14 @@ These values are treated as secrets and never committed:
 The committed profiles use placeholders such as `__HTTPS_PASSWORD__`. They are
 not directly usable by Surge until rendered.
 
-Create the local secret file and render:
+Create the local credential directory and render:
 
 ```bash
-cp private/secrets.example.env private/secrets.env
-$EDITOR private/secrets.env
+mkdir -p ~/.config/surge-config
+chmod 700 ~/.config/surge-config
+cp private/secrets.example.env ~/.config/surge-config/credentials.env
+chmod 600 ~/.config/surge-config/credentials.env
+$EDITOR ~/.config/surge-config/credentials.env
 ./scripts/render-config.sh
 ```
 
@@ -99,9 +102,17 @@ The GitHub Action runs the same remote-rule check daily.
 ## One-click install service
 
 The deployed configuration service is hosted at `config.fallback.page`. Its
-unguessable path token is stored only in `private/config-service.env`. Opening
+unguessable path token is stored only in
+`~/.config/surge-config/config-service.env`. Opening
 that protected path in Safari shows buttons for Surge and Shadowrocket.
+
+Surge Mac 6.7 or later can use the same browser install button. On older Mac
+versions, use **Profiles > Download Profile from URL** and paste the protected
+managed-profile URL, or update Surge first.
 
 `edge.fallback.page` hosts the separately deployed EdgeTunnel Worker. Its
 authentication values are Cloudflare Worker secrets with an ignored local
-recovery copy in `private/edgetunnel.env`.
+recovery copy in `~/.config/surge-config/edgetunnel.env`.
+
+Set `SURGE_CONFIG_HOME` to override this local credential directory. Keep the
+directory mode at `0700` and each credential file at `0600`.

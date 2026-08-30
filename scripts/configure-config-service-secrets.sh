@@ -4,15 +4,19 @@ set -euo pipefail
 repo_dir=$(cd "$(dirname "$0")/.." && pwd)
 worker_config=${1:?Usage: configure-config-service-secrets.sh <wrangler-config> <phone-export>}
 phone_export=${2:?Usage: configure-config-service-secrets.sh <wrangler-config> <phone-export>}
-edge_secret_file="$repo_dir/private/edgetunnel.env"
-profile_secret_file="$repo_dir/private/secrets.env"
-service_secret_file="$repo_dir/private/config-service.env"
+config_home=${SURGE_CONFIG_HOME:-"$HOME/.config/surge-config"}
+edge_secret_file="$config_home/edgetunnel.env"
+profile_secret_file="$config_home/credentials.env"
+service_secret_file="$config_home/config-service.env"
 wrangler_version=4.127.1
 
 if [[ ! -f "$phone_export" || ! -f "$edge_secret_file" ]]; then
-  echo "Missing phone export or private/edgetunnel.env" >&2
+  echo "Missing phone export or $edge_secret_file" >&2
   exit 1
 fi
+
+mkdir -p "$config_home"
+chmod 700 "$config_home"
 
 extract_field() {
   local node_name=$1
