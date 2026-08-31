@@ -65,4 +65,58 @@ for broad_domain in auth0.com stripe.com sentry.io intercom.io segment.io statsi
   fi
 done
 
+# Company domains must bypass encrypted DNS and resolve through the system DNS.
+surge_profile="$repo_dir/surge.conf"
+expected_bypass='bypass-dns = kuaishou.com, *.kuaishou.com, *.corp.kuaishou.com, *.gifshow.com, *.kuaishoupay.com, *.kwimgs.com, *.ssrcdn.com, *.kwaitalk.com'
+if ! grep -Fqx "$expected_bypass" "$surge_profile"; then
+  echo "FAIL $surge_profile missing company bypass-dns configuration" >&2
+  failed=1
+fi
+
+for host in \
+  'corp.kuaishou.com = server:syslib' \
+  '*.corp.kuaishou.com = server:syslib' \
+  'kuaishou.com = server:syslib' \
+  '*.kuaishou.com = server:syslib' \
+  '*.gifshow.com = server:syslib' \
+  '*.kwimgs.com = server:syslib' \
+  '*.ssrcdn.com = server:syslib' \
+  '*.kwaitalk.com = server:syslib' \
+  '*.kuaishoupay.com = server:syslib'; do
+  if ! grep -Fqx "$host" "$surge_profile"; then
+    echo "FAIL $surge_profile missing system-DNS host mapping: $host" >&2
+    failed=1
+  fi
+done
+
+# Inline work rules are required before the first remote RULE-SET so a failed or
+# conflicting provider cannot send intranet traffic to FINAL/Fallback.
+for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
+  first_remote_line=$(grep -n '^RULE-SET,https://' "$profile" | head -1 | cut -d: -f1)
+  for rule in \
+    'DOMAIN,adlp.corp.kuaishou.com,REJECT' \
+    'DOMAIN,kepm.corp.kuaishou.com,REJECT' \
+    'DOMAIN-SUFFIX,corp.kuaishou.com,DIRECT' \
+    'DOMAIN-SUFFIX,kuaishou.com,DIRECT' \
+    'DOMAIN-SUFFIX,gifshow.com,DIRECT' \
+    'DOMAIN-SUFFIX,kuaishoupay.com,DIRECT' \
+    'DOMAIN-SUFFIX,kwimgs.com,DIRECT' \
+    'DOMAIN-SUFFIX,ssrcdn.com,DIRECT' \
+    'DOMAIN-SUFFIX,kwaitalk.com,DIRECT'; do
+    rule_line=$(grep -nF "$rule" "$profile" | head -1 | cut -d: -f1)
+    if [[ -z "$rule_line" || -z "$first_remote_line" || "$rule_line" -ge "$first_remote_line" ]]; then
+      echo "FAIL $profile company rule is missing or follows a remote RULE-SET: $rule" >&2
+      failed=1
+    fi
+  done
+
+  adlp_line=$(grep -nF 'DOMAIN,adlp.corp.kuaishou.com,REJECT' "$profile" | head -1 | cut -d: -f1)
+  kepm_line=$(grep -nF 'DOMAIN,kepm.corp.kuaishou.com,REJECT' "$profile" | head -1 | cut -d: -f1)
+  corp_line=$(grep -nF 'DOMAIN-SUFFIX,corp.kuaishou.com,DIRECT' "$profile" | head -1 | cut -d: -f1)
+  if [[ -z "$adlp_line" || -z "$kepm_line" || -z "$corp_line" || "$adlp_line" -ge "$corp_line" || "$kepm_line" -ge "$corp_line" ]]; then
+    echo "FAIL $profile explicit company rejects must precede corp DIRECT" >&2
+    failed=1
+  fi
+done
+
 exit "$failed"
