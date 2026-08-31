@@ -78,16 +78,31 @@ for host in \
   '*.corp.kuaishou.com = server:syslib' \
   'kuaishou.com = server:syslib' \
   '*.kuaishou.com = server:syslib' \
+  'gifshow.com = server:syslib' \
   '*.gifshow.com = server:syslib' \
+  'kwimgs.com = server:syslib' \
   '*.kwimgs.com = server:syslib' \
+  'ssrcdn.com = server:syslib' \
   '*.ssrcdn.com = server:syslib' \
+  'kwaitalk.com = server:syslib' \
   '*.kwaitalk.com = server:syslib' \
+  'kuaishoupay.com = server:syslib' \
   '*.kuaishoupay.com = server:syslib'; do
   if ! grep -Fqx "$host" "$surge_profile"; then
     echo "FAIL $surge_profile missing system-DNS host mapping: $host" >&2
     failed=1
   fi
 done
+
+if grep -Eq '^(encrypted-dns-server|encrypted-dns-follow-outbound-mode|hijack-dns)[[:space:]]*=' "$surge_profile"; then
+  echo "FAIL $surge_profile public/encrypted DNS interception can break company DNS" >&2
+  failed=1
+fi
+
+if grep -Eq '^DOMAIN-SUFFIX,(corp\.)?kuaishou\.com$|^DOMAIN-SUFFIX,kuaishoupay\.com$' "$repo_dir/rules/direct-extra.list"; then
+  echo "FAIL direct-extra.list must not duplicate inline company rules" >&2
+  failed=1
+fi
 
 # Inline work rules are required before the first remote RULE-SET so a failed or
 # conflicting provider cannot send intranet traffic to FINAL/Fallback.
