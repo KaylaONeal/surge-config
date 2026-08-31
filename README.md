@@ -10,7 +10,7 @@ tracked; passwords and other authentication material are not.
 | AI / LLM services (except Google) | `AI` | US-only fallback pool |
 | Google AI (Gemini, AI Studio, NotebookLM, DeepMind) | `Proxy` | JP first, same as other Google traffic |
 | Other overseas services | `Proxy`, `Streaming`, `Telegram` | JP first, with cross-region and manual alternatives |
-| Domestic services | `Domestic` | DIRECT |
+| Domestic services | `Domestic` (inline `DIRECT` fast path first) | DIRECT |
 | Ads | `AdBlock` | REJECT, switchable to DIRECT |
 | Cloudflare fallback | `CF Edge Auto` | Best of direct/CT/CU/CM EdgeTunnel ingress |
 | Everything unmatched | `Fallback` | DIRECT |
@@ -19,6 +19,29 @@ AI rules are evaluated before Google, Microsoft and Global rule sets. The
 `US Only` group never falls back to JP or KR. Google AI is deliberately outside
 the `AI` policy: Google does not ban accounts for exiting from a non-US region,
 so it uses the faster `Proxy` policy together with the rest of Google.
+
+## Domestic traffic and DNS
+
+Upstream `ChinaMax.list` now ships almost no domain rules (51 TLD suffixes, 13
+keywords, 8k `no-resolve` IP ranges), so domestic domains used to reach
+`Domestic` only through `GEOIP,CN`. GEOIP forces a DNS resolution before Surge
+can choose a policy, which is what made domestic sites feel slow. Two changes
+fix that:
+
+- an inline `DIRECT` fast path for the common CN services (WeChat/QQ, Taobao,
+  Tmall, Xianyu, Alipay, JD, Pinduoduo, Meituan, Douyin, Bilibili, Xiaohongshu,
+  Weibo, Zhihu, Baidu, NetEase, carriers) evaluated before every overseas set;
+- `DOMAIN-SET` on `ChinaMax_Domain.list` (Surge) and ACL4SSR `ChinaDomain.list`
+  (Shadowrocket) for the long tail, with `ChinaMax.list` kept for its IP ranges.
+
+Ad rule sets still run before the fast path, so ad and tracking subdomains of
+those services stay rejected.
+
+Company intranet names must resolve through the system resolver. Public DNS
+answers `NXDOMAIN` for them, which is why they fail to open. Both profiles keep
+the company domains in `bypass-dns` plus `[Host] ... = server:syslib`, and
+neither profile may enable encrypted DNS. Add new company suffixes to all three
+places at once.
 
 ## Repository layout
 

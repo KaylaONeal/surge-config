@@ -58,6 +58,35 @@ for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
 done
 
 
+# Domestic fast path: core CN domains must match by domain before any overseas
+# rule set, otherwise they only match through GEOIP,CN and pay a DNS round trip.
+for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
+  first_overseas_line=$(grep -n 'Surge/Gemini/Gemini.list\|Surge/Telegram/Telegram.list' "$profile" | head -1 | cut -d: -f1)
+  for domain in \
+    qq.com weixin.qq.com wechat.com taobao.com tmall.com goofish.com \
+    alipay.com jd.com meituan.com douyin.com bilibili.com xiaohongshu.com \
+    pinduoduo.com weibo.com baidu.com; do
+    rule_line=$(grep -n "^DOMAIN-SUFFIX,${domain//./\\.},DIRECT$" "$profile" | head -1 | cut -d: -f1)
+    if [[ -z "$rule_line" || -z "$first_overseas_line" || "$rule_line" -ge "$first_overseas_line" ]]; then
+      echo "FAIL $profile missing domestic fast-path rule before overseas sets: $domain" >&2
+      failed=1
+    fi
+  done
+done
+
+# Encrypted DNS answers NXDOMAIN for company intranet names.
+if grep -Eq '^encrypted-dns-server[[:space:]]*=' "$repo_dir/shadowrocket.conf"; then
+  echo "FAIL shadowrocket.conf encrypted DNS can break company DNS" >&2
+  failed=1
+fi
+
+for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
+  if ! grep -Fq 'corp.kuaishou.com = server:syslib' "$profile"; then
+    echo "FAIL $profile missing system-DNS host mapping for company domains" >&2
+    failed=1
+  fi
+done
+
 for broad_domain in auth0.com stripe.com sentry.io intercom.io segment.io statsigapi.net; do
   if grep -Eq "^DOMAIN-SUFFIX,${broad_domain//./\\.}$" "$repo_dir/rules/ai-extra.list"; then
     echo "FAIL AI rules contain broad shared-vendor domain: $broad_domain" >&2
