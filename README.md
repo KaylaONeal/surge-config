@@ -11,6 +11,8 @@ tracked; passwords and other authentication material are not.
 | Google AI (Gemini, AI Studio, NotebookLM, DeepMind) | `Proxy` | JP first, same as other Google traffic |
 | Other overseas services | `Proxy`, `Streaming`, `Telegram` | JP first, with cross-region and manual alternatives |
 | Domestic services | `Domestic` (inline `DIRECT` fast path first) | DIRECT |
+| IBKR overseas sites and trading gateways | `CF Edge Auto` | Best mainland CF ingress |
+| IBKR mainland trading gateway (`*.ibllc.com.cn`) | `DIRECT` | DIRECT |
 | Ads | `AdBlock` | REJECT, switchable to DIRECT |
 | Cloudflare fallback | `CF Edge Auto` | Best of direct/CT/CU/CM EdgeTunnel ingress |
 | Everything unmatched | `Fallback` | DIRECT |

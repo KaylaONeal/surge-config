@@ -169,4 +169,38 @@ for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
   fi
 done
 
+# IBKR public domains in upstream Global.list would use Proxy/JP, while TWS
+# overseas gateways (*.ibllc.com) are absent upstream and fall through to
+# DIRECT. Keep both on CF Edge, but leave the mainland gateway direct.
+for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
+  ibkr_rule='RULE-SET,https://raw.githubusercontent.com/KaylaONeal/surge-config/main/rules/ibkr.list,CF Edge Auto'
+  ibkr_line=$(grep -nF "$ibkr_rule" "$profile" | head -1 | cut -d: -f1)
+  global_line=$(grep -n 'ios_rule_script/master/rule/Surge/Global/Global.list,Proxy' "$profile" | head -1 | cut -d: -f1)
+  mainland_line=$(grep -nF 'DOMAIN-SUFFIX,ibllc.com.cn,DIRECT' "$profile" | head -1 | cut -d: -f1)
+
+  if [[ -z "$ibkr_line" || -z "$global_line" || "$ibkr_line" -ge "$global_line" ]]; then
+    echo "FAIL $profile IBKR CF Edge rule missing or follows Global.list" >&2
+    failed=1
+  fi
+  if [[ -z "$mainland_line" || -z "$ibkr_line" || "$mainland_line" -ge "$ibkr_line" ]]; then
+    echo "FAIL $profile IBKR mainland DIRECT rule must precede CF Edge rule" >&2
+    failed=1
+  fi
+done
+
+for required_ibkr_rule in \
+  'DOMAIN-SUFFIX,ibllc.com' \
+  'DOMAIN-SUFFIX,ibkr.com' \
+  'DOMAIN-SUFFIX,interactivebrokers.com'; do
+  if ! grep -Fxq "$required_ibkr_rule" "$repo_dir/rules/ibkr.list"; then
+    echo "FAIL rules/ibkr.list missing $required_ibkr_rule" >&2
+    failed=1
+  fi
+done
+
+if grep -Fqx 'DOMAIN-SUFFIX,ibllc.com.cn' "$repo_dir/rules/ibkr.list"; then
+  echo "FAIL rules/ibkr.list must not proxy mainland trading gateway" >&2
+  failed=1
+fi
+
 exit "$failed"
