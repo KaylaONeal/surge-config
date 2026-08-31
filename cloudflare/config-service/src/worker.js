@@ -41,9 +41,13 @@ async function loadTemplate(name, env) {
   const headers = {};
   if (env.GITHUB_TOKEN) headers.authorization = `Bearer ${env.GITHUB_TOKEN}`;
 
-  const response = await fetch(`${TEMPLATE_BASE}/${name}`, {
+  // Managed-profile updates must see the current GitHub branch immediately.
+  // A unique query string avoids stale Cloudflare/GitHub cache entries.
+  const templateUrl = new URL(`${TEMPLATE_BASE}/${name}`);
+  templateUrl.searchParams.set("v", Date.now().toString());
+  const response = await fetch(templateUrl, {
     headers,
-    cf: { cacheTtl: 60, cacheEverything: true },
+    cache: "no-store",
   });
 
   if (!response.ok) {
@@ -127,4 +131,3 @@ export default {
     }
   },
 };
-

@@ -104,6 +104,12 @@ if grep -Eq '^DOMAIN-SUFFIX,(corp\.)?kuaishou\.com$|^DOMAIN-SUFFIX,kuaishoupay\.
   failed=1
 fi
 
+worker_source="$repo_dir/cloudflare/config-service/src/worker.js"
+if grep -Fq 'cacheEverything: true' "$worker_source" || ! grep -Fq 'cache: "no-store"' "$worker_source"; then
+  echo "FAIL config service template fetch must bypass stale edge caches" >&2
+  failed=1
+fi
+
 # Inline work rules are required before the first remote RULE-SET so a failed or
 # conflicting provider cannot send intranet traffic to FINAL/Fallback.
 for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do

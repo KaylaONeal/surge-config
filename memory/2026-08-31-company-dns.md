@@ -14,6 +14,11 @@ only controls routing; it cannot repair a failed DNS lookup.
 The company suffixes were also duplicated in `rules/direct-extra.list`, which
 made rule-match diagnostics ambiguous on stale or differently loaded profiles.
 
+The protected configuration service continued returning an old template after
+GitHub Raw had updated. Its `cacheEverything: true` fetch policy made a manual
+profile refresh unreliable and explained why another computer still observed
+the old `direct-extra.list` match.
+
 ## Fix
 
 - Keep company suffixes inline before every remote rule set.
@@ -21,6 +26,7 @@ made rule-match diagnostics ambiguous on stale or differently loaded profiles.
 - Remove encrypted DNS and DNS hijacking from the Surge template.
 - Remove duplicate company suffixes from `direct-extra.list`.
 - Retain the explicit `adlp` and `kepm` rejects before broad company DIRECT.
+- Fetch templates without edge caching and use a unique query parameter.
 
 ## Verification
 
