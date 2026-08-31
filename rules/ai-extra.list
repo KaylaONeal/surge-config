@@ -1,6 +1,6 @@
 # NAME: AI-Extra
 # DESC: Maintained AI/LLM product and exact dependency domains
-# UPDATED: 2026-08-31
+# UPDATED: 2026-09-01
 # TYPE: Surge RULE-SET (Shadowrocket compatible)
 
 # --- OpenAI adjacent ---
@@ -45,16 +45,6 @@ DOMAIN-SUFFIX,claudeusercontent.com
 DOMAIN-SUFFIX,claude.site
 DOMAIN-SUFFIX,claudemcpclient.com
 DOMAIN-SUFFIX,claudemcpcontent.com
-
-# --- Google AI ---
-DOMAIN-SUFFIX,gemini.google.com
-DOMAIN-SUFFIX,bard.google.com
-DOMAIN-SUFFIX,aistudio.google.com
-DOMAIN-SUFFIX,generativelanguage.googleapis.com
-DOMAIN-SUFFIX,makersuite.google.com
-DOMAIN-SUFFIX,deepmind.com
-DOMAIN-SUFFIX,deepmind.google
-DOMAIN-SUFFIX,notebooklm.google
 
 # --- xAI / Grok ---
 DOMAIN-SUFFIX,x.ai

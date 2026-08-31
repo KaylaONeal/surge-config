@@ -7,7 +7,8 @@ tracked; passwords and other authentication material are not.
 
 | Traffic | Policy | Default exit |
 |---|---|---|
-| AI / LLM services | `AI` | US-only fallback pool |
+| AI / LLM services (except Google) | `AI` | US-only fallback pool |
+| Google AI (Gemini, AI Studio, NotebookLM, DeepMind) | `Proxy` | JP first, same as other Google traffic |
 | Other overseas services | `Proxy`, `Streaming`, `Telegram` | JP first, with cross-region and manual alternatives |
 | Domestic services | `Domestic` | DIRECT |
 | Ads | `AdBlock` | REJECT, switchable to DIRECT |
@@ -15,7 +16,9 @@ tracked; passwords and other authentication material are not.
 | Everything unmatched | `Fallback` | DIRECT |
 
 AI rules are evaluated before Google, Microsoft and Global rule sets. The
-`US Only` group never falls back to JP or KR.
+`US Only` group never falls back to JP or KR. Google AI is deliberately outside
+the `AI` policy: Google does not ban accounts for exiting from a non-US region,
+so it uses the faster `Proxy` policy together with the rest of Google.
 
 ## Repository layout
 
@@ -26,7 +29,7 @@ AI rules are evaluated before Google, Microsoft and Global rule sets. The
 | `private/nodes.md` | Real protocol/server/port/SNI inventory | Yes |
 | `private/secrets.example.env` | Empty authentication-variable template | Yes |
 | `~/.config/surge-config/credentials.env` | Local passwords and authentication IDs | Outside repository |
-| `rules/*.list` | Shared AI, direct, reject and macOS process rules | Yes |
+| `rules/*.list` | Shared AI, Google AI, direct, reject and macOS process rules | Yes |
 | `build/*.conf` | Rendered usable profiles containing credentials | **No** |
 
 The raw phone export is intentionally ignored because it contains proxy

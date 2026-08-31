@@ -1,0 +1,15 @@
+# NAME: Google-AI
+# DESC: Google/DeepMind AI product domains routed with normal Google traffic
+# UPDATED: 2026-09-01
+# TYPE: Surge RULE-SET (Shadowrocket compatible)
+# NOTE: Google does not ban accounts for region hopping, so these do not need
+# the US-only AI policy. They ride the Proxy policy with the rest of Google.
+
+DOMAIN-SUFFIX,gemini.google.com
+DOMAIN-SUFFIX,bard.google.com
+DOMAIN-SUFFIX,aistudio.google.com
+DOMAIN-SUFFIX,generativelanguage.googleapis.com
+DOMAIN-SUFFIX,makersuite.google.com
+DOMAIN-SUFFIX,deepmind.com
+DOMAIN-SUFFIX,deepmind.google
+DOMAIN-SUFFIX,notebooklm.google
