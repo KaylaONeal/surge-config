@@ -46,8 +46,13 @@ for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
     failed=1
   fi
 
-  if ! grep -Eq '^Fallback = select, DIRECT,' "$profile"; then
-    echo "FAIL $profile must keep DIRECT as the default fallback" >&2
+  if ! grep -Fqx 'FINAL,DIRECT' "$profile" || grep -Eq '^FINAL,(Fallback|Proxy|CF Edge Auto)$' "$profile"; then
+    echo "FAIL $profile must hard-route unknown traffic to DIRECT" >&2
+    failed=1
+  fi
+
+  if grep -Eq '^(Domestic|Fallback) = ' "$profile" || grep -Eq '^GEOIP,CN,' "$profile"; then
+    echo "FAIL $profile domestic/unknown traffic must not use a remembered group or GEOIP lookup" >&2
     failed=1
   fi
 
@@ -55,6 +60,36 @@ for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
     echo "FAIL $profile AI policy contains a non-US/direct option" >&2
     failed=1
   fi
+done
+
+surge_domestic_set='DOMAIN-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/ChinaMax/ChinaMax_Domain.list,DIRECT'
+shadowrocket_domestic_set='RULE-SET,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/ChinaDomain.list,DIRECT'
+if ! grep -Fqx "$surge_domestic_set" "$repo_dir/surge.conf"; then
+  echo "FAIL surge.conf must use the full ChinaMax domain set as DIRECT" >&2
+  failed=1
+fi
+if ! grep -Fqx "$shadowrocket_domestic_set" "$repo_dir/shadowrocket.conf"; then
+  echo "FAIL shadowrocket.conf must use the ChinaDomain rule set as DIRECT" >&2
+  failed=1
+fi
+
+# Common overseas services must use CF Edge directly. A select group can retain
+# an old JP/US choice across profile reloads, defeating the desired routing.
+for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
+  for service in Telegram Twitter Google Global; do
+    expected="RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/$service/$service.list,CF Edge Auto"
+    if ! grep -Fqx "$expected" "$profile"; then
+      echo "FAIL $profile must route $service through CF Edge Auto" >&2
+      failed=1
+    fi
+  done
+
+  for domain in google.com googleapis.com gstatic.com telegram.org t.me x.com twitter.com twimg.com; do
+    if ! grep -Fqx "DOMAIN-SUFFIX,$domain,CF Edge Auto" "$profile"; then
+      echo "FAIL $profile missing inline CF Edge rule for $domain" >&2
+      failed=1
+    fi
+  done
 done
 
 
@@ -69,6 +104,19 @@ for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
     rule_line=$(grep -n "^DOMAIN-SUFFIX,${domain//./\\.},DIRECT$" "$profile" | head -1 | cut -d: -f1)
     if [[ -z "$rule_line" || -z "$first_overseas_line" || "$rule_line" -ge "$first_overseas_line" ]]; then
       echo "FAIL $profile missing domestic fast-path rule before overseas sets: $domain" >&2
+      failed=1
+    fi
+  done
+done
+
+# Dedicated domestic lists must be direct and precede the first overseas set.
+for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
+  first_overseas_line=$(grep -n 'Surge/Telegram/Telegram.list' "$profile" | head -1 | cut -d: -f1)
+  for service in WeChat DiDi; do
+    rule="RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/$service/$service.list,DIRECT"
+    rule_line=$(grep -nF "$rule" "$profile" | head -1 | cut -d: -f1)
+    if [[ -z "$rule_line" || -z "$first_overseas_line" || "$rule_line" -ge "$first_overseas_line" ]]; then
+      echo "FAIL $profile $service DIRECT rule missing or follows overseas rules" >&2
       failed=1
     fi
   done
@@ -175,7 +223,7 @@ done
 for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
   ibkr_rule='RULE-SET,https://raw.githubusercontent.com/KaylaONeal/surge-config/main/rules/ibkr.list,CF Edge Auto'
   ibkr_line=$(grep -nF "$ibkr_rule" "$profile" | head -1 | cut -d: -f1)
-  global_line=$(grep -n 'ios_rule_script/master/rule/Surge/Global/Global.list,Proxy' "$profile" | head -1 | cut -d: -f1)
+  global_line=$(grep -n 'ios_rule_script/master/rule/Surge/Global/Global.list,CF Edge Auto' "$profile" | head -1 | cut -d: -f1)
   mainland_line=$(grep -nF 'DOMAIN-SUFFIX,ibllc.com.cn,DIRECT' "$profile" | head -1 | cut -d: -f1)
 
   if [[ -z "$ibkr_line" || -z "$global_line" || "$ibkr_line" -ge "$global_line" ]]; then
