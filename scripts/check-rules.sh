@@ -20,8 +20,10 @@ for url in $urls; do
     fi
   fi
 
-  status=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 25 --retry 2 "$url")
-  if [[ "$status" == 200 ]]; then
+  # Only fetch the first byte. Some upstream rule sets are several megabytes;
+  # downloading every file made this reachability check slow and flaky.
+  status=$(curl -sS -o /dev/null -w '%{http_code}' --range 0-0 --max-time 25 --retry 2 "$url")
+  if [[ "$status" == 200 || "$status" == 206 ]]; then
     echo "OK $url"
   else
     echo "FAIL $url (HTTP $status)" >&2
@@ -63,13 +65,53 @@ for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
 done
 
 surge_domestic_set='DOMAIN-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/ChinaMax/ChinaMax_Domain.list,DIRECT'
-shadowrocket_domestic_set='RULE-SET,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/ChinaDomain.list,DIRECT'
+surge_overseas_set='DOMAIN-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Global/Global_Domain.list,CF Edge Auto'
+shadowrocket_domestic_set='RULE-SET,https://raw.githubusercontent.com/Loyalsoldier/surge-rules/release/ruleset/direct.txt,DIRECT'
+shadowrocket_overseas_set='RULE-SET,https://raw.githubusercontent.com/Loyalsoldier/surge-rules/release/ruleset/proxy.txt,CF Edge Auto'
 if ! grep -Fqx "$surge_domestic_set" "$repo_dir/surge.conf"; then
   echo "FAIL surge.conf must use the full ChinaMax domain set as DIRECT" >&2
   failed=1
 fi
+if ! grep -Fqx "$surge_overseas_set" "$repo_dir/surge.conf"; then
+  echo "FAIL surge.conf must use the full Global domain set through CF Edge" >&2
+  failed=1
+fi
 if ! grep -Fqx "$shadowrocket_domestic_set" "$repo_dir/shadowrocket.conf"; then
-  echo "FAIL shadowrocket.conf must use the ChinaDomain rule set as DIRECT" >&2
+  echo "FAIL shadowrocket.conf must use Loyalsoldier direct rules" >&2
+  failed=1
+fi
+if ! grep -Fqx "$shadowrocket_overseas_set" "$repo_dir/shadowrocket.conf"; then
+  echo "FAIL shadowrocket.conf must use Loyalsoldier proxy rules through CF Edge" >&2
+  failed=1
+fi
+
+for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
+  proxy_extra='RULE-SET,https://raw.githubusercontent.com/KaylaONeal/surge-config/main/rules/proxy-extra.list,CF Edge Auto'
+  proxy_extra_line=$(grep -nF "$proxy_extra" "$profile" | head -1 | cut -d: -f1)
+  first_broad_direct_line=$(grep -nE 'ChinaMax/ChinaMax_Domain\.list,DIRECT|Loyalsoldier/surge-rules/release/ruleset/direct\.txt,DIRECT' "$profile" | head -1 | cut -d: -f1)
+  first_broad_proxy_line=$(grep -nE 'Global/Global_Domain\.list,CF Edge Auto|Loyalsoldier/surge-rules/release/ruleset/proxy\.txt,CF Edge Auto' "$profile" | head -1 | cut -d: -f1)
+  core_ai_line=$(grep -nF 'DOMAIN-SUFFIX,openai.com,AI' "$profile" | head -1 | cut -d: -f1)
+  core_cf_line=$(grep -nF 'DOMAIN-SUFFIX,google.com,CF Edge Auto' "$profile" | head -1 | cut -d: -f1)
+  if [[ -z "$proxy_extra_line" || -z "$first_broad_direct_line" || -z "$first_broad_proxy_line" ||
+        -z "$core_ai_line" || -z "$core_cf_line" ||
+        "$core_ai_line" -ge "$first_broad_direct_line" ||
+        "$core_cf_line" -ge "$first_broad_direct_line" ||
+        "$proxy_extra_line" -ge "$first_broad_direct_line" ||
+        "$first_broad_direct_line" -ge "$first_broad_proxy_line" ]]; then
+    echo "FAIL $profile policy priority must be core AI/CF, proxy-extra, domestic, overseas" >&2
+    failed=1
+  fi
+done
+
+# Avoid loading two almost-identical 100k/30k rule sets in the same client.
+if grep -Fq 'Loyalsoldier/surge-rules/release/ruleset/direct.txt' "$repo_dir/surge.conf" ||
+   grep -Fq 'Loyalsoldier/surge-rules/release/ruleset/proxy.txt' "$repo_dir/surge.conf"; then
+  echo "FAIL surge.conf must not duplicate Blackmatrix broad sets with Loyalsoldier" >&2
+  failed=1
+fi
+if grep -Fq 'ChinaMax/ChinaMax_Domain.list' "$repo_dir/shadowrocket.conf" ||
+   grep -Fq 'Global/Global_Domain.list' "$repo_dir/shadowrocket.conf"; then
+  echo "FAIL shadowrocket.conf must not duplicate Loyalsoldier broad sets with Blackmatrix" >&2
   failed=1
 fi
 

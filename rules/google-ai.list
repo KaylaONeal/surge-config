@@ -3,7 +3,7 @@
 # UPDATED: 2026-09-01
 # TYPE: Surge RULE-SET (Shadowrocket compatible)
 # NOTE: Google does not ban accounts for region hopping, so these do not need
-# the US-only AI policy. They ride the Proxy policy with the rest of Google.
+# the US-only AI policy. They ride CF Edge Auto with the rest of Google.
 
 DOMAIN-SUFFIX,gemini.google.com
 DOMAIN-SUFFIX,bard.google.com

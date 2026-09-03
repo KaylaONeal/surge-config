@@ -31,8 +31,9 @@ fix that:
 - an inline `DIRECT` fast path for the common CN services (WeChat/QQ, Taobao,
   Tmall, Xianyu, Alipay, JD, Pinduoduo, Meituan, Douyin, Bilibili, Xiaohongshu,
   Weibo, Zhihu, Baidu, NetEase, carriers) evaluated before every overseas set;
-- dedicated WeChat and DiDi rule sets plus `ChinaMax_Domain.list` (Surge) and
-  ACL4SSR `ChinaDomain.list` (Shadowrocket), all evaluated before overseas sets;
+- dedicated WeChat and DiDi rule sets plus Blackmatrix `ChinaMax_Domain.list`
+  (Surge) and Loyalsoldier `direct.txt` (Shadowrocket), evaluated before broad
+  overseas sets;
 - literal `DIRECT` for domestic IP ranges and `FINAL`, so remembered policy-group
   selections can never send domestic or unknown traffic through a proxy.
 
@@ -44,6 +45,26 @@ answers `NXDOMAIN` for them, which is why they fail to open. Both profiles keep
 the company domains in `bypass-dns` plus `[Host] ... = server:syslib`, and
 neither profile may enable encrypted DNS. Add new company suffixes to all three
 places at once.
+
+## Upstream rule synchronization
+
+The profiles reference live upstream URLs instead of checked-in snapshots:
+
+- Surge uses Blackmatrix `ChinaMax_Domain.list` for domestic domains and
+  `Global_Domain.list` plus `Global.list` for overseas domains, keywords and IPs.
+- Shadowrocket uses Loyalsoldier `direct.txt` and `proxy.txt` for broad domain
+  coverage, plus Blackmatrix service-specific lists.
+
+Blackmatrix and Loyalsoldier overlap by roughly 96-98%, so loading both complete
+sets in one client would add more than 130,000 duplicate rules. Splitting the
+sources by client keeps future upstream additions automatic without that cost.
+Rule updates take effect when Surge or Shadowrocket refreshes its remote
+resources; no repository commit is needed for upstream-only changes.
+
+For personal overrides, add domains to `rules/proxy-extra.list`. It is evaluated
+before the broad domestic lists and routes matches to `CF Edge Auto`. Keep
+US-pinned AI domains in `rules/ai-extra.list` and forced-direct exceptions in
+`rules/direct-extra.list`.
 
 ## Repository layout
 

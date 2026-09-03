@@ -1,0 +1,8 @@
+#!name=Proxy-Extra
+#!desc=Personal domains forced through CF Edge Auto
+#!updated=2026-09-03
+
+# Prefer DOMAIN-SUFFIX for a service-owned domain and DOMAIN for a shared host.
+# Do not add broad shared CDNs such as amazonaws.com or cloudfront.net.
+# DOMAIN-SUFFIX,example.com
+# DOMAIN,api.example.net
