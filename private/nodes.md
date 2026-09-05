@@ -8,6 +8,7 @@ authentication material.
 | `JP HTTPS 01` | HTTPS | `us1.fallback.page` | 443 | JP | Imported from phone node `jp`; verify actual exit country |
 | `KR HTTPS 01` | HTTPS | `kr.fallback.page` | 443 | KR | Imported from phone node `kr` |
 | `US HTTPS 01` | HTTPS | `us1.fallback.page` | 443 | US | Uses `www.bing.com` as SNI |
+| `US HTTPS 01 CF` | HTTPS over CF Edge chain | `us1.fallback.page` | 443 | US | `underlying-proxy = CF Edge Auto`; identical egress to `US HTTPS 01` |
 | `US TUIC 01` | TUIC v5 | `192.3.243.194` | 51443 | US | Imported from phone node `uh`; verify actual exit country |
 | `US HY2 Relay 01` | Hysteria 2 | `139.196.52.175` | 36001 | US | Mainland relay endpoint; verify final exit country |
 | `US HY2 01` | Hysteria 2 | `139.196.52.175` | 36000 | US | Mainland relay endpoint; verify final exit country |
@@ -27,7 +28,12 @@ public exit IP before relying on the `AI` policy.
 The Cloudflare entries all use `edge.fallback.page` as TLS SNI and WebSocket
 Host. `CF Edge Auto` tests them on the client and selects the best entry for the
 current network. Cloudflare Worker egress is not guaranteed to be in the US, so
-this group is deliberately excluded from `AI` / `US Only`.
+this group is never an `AI` / `US Only` exit. It is used inside `AI` only as the
+*underlying* hop of `US HTTPS 01 CF`, where the egress is still the US server.
+
+`us1.fallback.page` and `us2.fallback.page` both resolve to `35.212.192.172`,
+which is not a Cloudflare address, so the Worker can dial it without hitting
+Cloudflare's block on connecting back into its own network.
 
 Authentication values live in `private/secrets.env`, which is ignored by Git.
 Start from `private/secrets.example.env`.

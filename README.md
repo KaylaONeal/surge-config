@@ -7,7 +7,7 @@ tracked; passwords and other authentication material are not.
 
 | Traffic | Policy | Default exit |
 |---|---|---|
-| AI / LLM services (except Google) | `AI` | US-only fallback pool |
+| AI / LLM services (except Google) | `AI` | US-only fallback pool, entered through CF Edge |
 | Google, Telegram, X and common overseas services | `CF Edge Auto` | Best mainland CF ingress |
 | Domestic services | literal `DIRECT` rules | DIRECT |
 | IBKR overseas sites and trading gateways | `CF Edge Auto` | Best mainland CF ingress |
@@ -19,6 +19,43 @@ tracked; passwords and other authentication material are not.
 AI rules are evaluated before Google, Microsoft and Global rule sets. The
 `US Only` group never falls back to JP or KR. Google AI is deliberately outside
 the `AI` policy and uses `CF Edge Auto` together with the rest of Google.
+
+## Accelerating AI traffic without moving its exit IP
+
+Pinning ChatGPT and Claude to US-only nodes protects against IP-drift checks,
+but the direct mainland path to the US server is the slow part, not the server
+itself. `US HTTPS 01 CF` fixes that by chaining rather than re-routing:
+
+```
+client -> CF Edge Auto (mainland-optimized Cloudflare ingress)
+       -> EdgeTunnel Worker
+       -> us1.fallback.page:443 (HTTPS proxy)
+       -> ChatGPT / Claude
+```
+
+Cloudflare only carries the transport. The connection still terminates at the
+same `us1.fallback.page` server, so the public egress IP is byte-for-byte the
+one those services already see today. From their side nothing changed, which is
+why this cannot trigger an IP-drift review.
+
+`US Entry` is a `url-test` group over exactly two members, `US HTTPS 01 CF` and
+the unchained `US HTTPS 01`. Because both terminate at the same server, letting
+latency decide between them is free: whichever path wins, the exit IP is
+identical. `US Only` uses `US Entry` as its first tier and keeps the QUIC nodes
+as the fallback tail.
+
+Two limits are structural:
+
+- the EdgeTunnel Worker can only open outbound **TCP**, so the TUIC and
+  Hysteria 2 nodes cannot be chained; they stay on their direct paths;
+- Surge rejects `underlying-proxy` combined with `port-hopping`, which rules out
+  `US HY2 02` regardless.
+
+Surge implements the chain through the `underlying-proxy` policy parameter,
+which accepts a policy group name. Shadowrocket's support for the same key in
+`.conf` is unverified. If Shadowrocket ignores it, `US HTTPS 01 CF` degrades
+into a plain duplicate of `US HTTPS 01`, which still exits from the US, so the
+US-only guarantee holds either way and only the speedup is lost.
 
 ## Domestic traffic and DNS
 
