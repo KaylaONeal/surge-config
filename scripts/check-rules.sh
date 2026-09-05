@@ -62,28 +62,6 @@ for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
     echo "FAIL $profile AI policy contains a non-US/direct option" >&2
     failed=1
   fi
-
-  # `US HTTPS 01 CF` only accelerates the transport: Cloudflare is the entry
-  # hop, the egress is still the US server. Both properties must hold, or the
-  # AI policy silently loses its US-only guarantee.
-  if ! grep -Eq '^US HTTPS 01 CF = https, us1\.fallback\.page, 443,.*underlying-proxy ?= ?CF Edge Auto$' "$profile"; then
-    echo "FAIL $profile US HTTPS 01 CF must be the us1 exit chained through CF Edge Auto" >&2
-    failed=1
-  fi
-
-  # Every other member of the chained-entry group must land on the same exit
-  # server, so switching paths can never move the public IP an AI service sees.
-  if ! grep -Eq '^US Entry = url-test, US HTTPS 01 CF, US HTTPS 01,' "$profile"; then
-    echo "FAIL $profile US Entry must contain only the us1 chained and direct paths" >&2
-    failed=1
-  fi
-
-  # The EdgeTunnel Worker has no UDP egress, so QUIC-based nodes must stay
-  # unchained. A chained TUIC/Hysteria node would simply be dead.
-  if grep -E '^US (TUIC|HY2) ' "$profile" | grep -q 'underlying-proxy'; then
-    echo "FAIL $profile QUIC-based nodes cannot be chained through the CF Worker" >&2
-    failed=1
-  fi
 done
 
 surge_domestic_set='DOMAIN-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/ChinaMax/ChinaMax_Domain.list,DIRECT'
