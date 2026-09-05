@@ -20,6 +20,35 @@ AI rules are evaluated before Google, Microsoft and Global rule sets. The
 `US Only` group never falls back to JP or KR. Google AI is deliberately outside
 the `AI` policy and uses `CF Edge Auto` together with the rest of Google.
 
+## Why AI traffic is not chained through Cloudflare
+
+Routing the US-pinned AI exit through the Cloudflare EdgeTunnel ingress looks
+attractive, because it would keep the egress IP on us1 while replacing the slow
+mainland-to-US leg. It was tried and **measured to be slower**, so it is not in
+this profile. Time to a completed `CONNECT` through the us1 HTTPS proxy, from a
+mainland home line, bypassing the local Surge tunnel (2026-09-06, 6 samples):
+
+| Path | median | min |
+|---|---:|---:|
+| direct to `us1:443` | 0.68 s | 0.67 s |
+| chained via CF `188.164.248.21` (SEA colo) | 1.01 s | 0.99 s |
+| chained via CF `104.17.107.60` (HKG colo) | 3.23 s | 1.39 s |
+
+The reason is that the Cloudflare ingress addresses in `CF Edge Auto` do not
+anycast to a nearby colo. Queried from the mainland, `188.164.248.21`,
+`104.26.0.109` and `172.67.66.108` land on **SEA**, `8.35.211.67` on **LAX** and
+`8.35.211.67`/`104.17.107.60` on **SJC**/**HKG**. Only one of six is in Asia.
+
+For a connection that already crossed the Pacific to reach a US colo, chaining
+adds no shortcut: us1 measures 6 ms to those colos, so the CF-to-us1 leg is
+free, but the WebSocket handshake and the inner TLS handshake each cost another
+full mainland-to-US round trip. The one Asian entry (HKG) has a fast TCP
+handshake at 58-177 ms but is badly congested afterwards, with inner-TLS times
+scattered between 0.5 s and 4.9 s.
+
+Chaining would only pay off with an ingress address that reliably lands on an
+Asian colo *and* stays stable under load. Re-measure before revisiting this.
+
 ## Domestic traffic and DNS
 
 Upstream `ChinaMax.list` now ships almost no domain rules (51 TLD suffixes, 13

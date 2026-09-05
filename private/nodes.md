@@ -24,6 +24,23 @@ The pool assignments preserve the intent of the exported phone profile. Node
 names and ingress locations do not prove the egress country. Verify each node's
 public exit IP before relying on the `AI` policy.
 
+## Verified topology (2026-09-06, over SSH)
+
+- `us1.fallback.page` and `us2.fallback.page` both resolve to `35.212.192.172`,
+  a GCP instance in The Dalles, Oregon (AS19527). It runs `gost` on TCP 443 as
+  the HTTPS proxy and `hysteria` on UDP 4444.
+- `139.196.52.175` is an Aliyun Shanghai box (AS37963) that runs **no proxy
+  process at all**. It relays purely through nftables DNAT:
+  - `udp/36000` -> `35.212.192.172:4444`, i.e. the same hysteria service that
+    `US HY2 02` already reaches directly;
+  - `udp/36001` -> `192.3.243.194:5000`.
+- `192.3.243.194` is ColoCrossing/HostPapa in Los Angeles (AS36352). It serves
+  both the TUIC endpoint on 51443 and a second hysteria on 5000.
+- us1's hysteria config is `listen: :4444` and its nat PREROUTING chain holds
+  only the Docker rule, so there is no redirect backing the
+  `port-hopping=5000-6000` parameter on `US HY2 02`. Confirm that node actually
+  connects before relying on it.
+
 The Cloudflare entries all use `edge.fallback.page` as TLS SNI and WebSocket
 Host. `CF Edge Auto` tests them on the client and selects the best entry for the
 current network. Cloudflare Worker egress is not guaranteed to be in the US, so
