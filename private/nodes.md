@@ -11,7 +11,7 @@ authentication material.
 | `US TUIC 01` | TUIC v5 | `192.3.243.194` | 51443 | US | Imported from phone node `uh`; verify actual exit country |
 | `US HY2 Relay 01` | Hysteria 2 | `139.196.52.175` | 36001 | US | Mainland relay endpoint; verify final exit country |
 | `US HY2 01` | Hysteria 2 | `139.196.52.175` | 36000 | US | Mainland relay endpoint; verify final exit country |
-| `US HY2 02` | Hysteria 2 | `us2.fallback.page` | 4444 | US | Port hopping `5000-6000` |
+| `US HY2 02` | Hysteria 2 | `us2.fallback.page` | 4444 | US | Direct QUIC to us1; port hopping removed, unsupported server-side |
 | `CF Edge Direct` | Trojan over WebSocket | `edge.fallback.page` | 443 | CF Edge | Normal DNS/Anycast entry |
 | `CF Edge CT 01` | Trojan over WebSocket | `188.164.248.21` | 443 | CF Edge | China Telecom candidate |
 | `CF Edge CT 02` | Trojan over WebSocket | `8.35.211.67` | 443 | CF Edge | China Telecom candidate |
@@ -37,9 +37,12 @@ public exit IP before relying on the `AI` policy.
 - `192.3.243.194` is ColoCrossing/HostPapa in Los Angeles (AS36352). It serves
   both the TUIC endpoint on 51443 and a second hysteria on 5000.
 - us1's hysteria config is `listen: :4444` and its nat PREROUTING chain holds
-  only the Docker rule, so there is no redirect backing the
-  `port-hopping=5000-6000` parameter on `US HY2 02`. Confirm that node actually
-  connects before relying on it.
+  only the Docker rule, so nothing backed the `port-hopping=5000-6000`
+  parameter that `US HY2 02` used to carry. Probing from a mainland line
+  confirmed both `udp/4444` and a port inside the hop range reach the host, so
+  the range is open at the GCP firewall but has no listener and no redirect.
+  The parameter has been dropped; the node now dials 4444 directly. Restoring
+  port-hopping requires a `REDIRECT` rule for 5000-6000 on us1 first.
 
 The Cloudflare entries all use `edge.fallback.page` as TLS SNI and WebSocket
 Host. `CF Edge Auto` tests them on the client and selects the best entry for the

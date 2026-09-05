@@ -62,6 +62,33 @@ for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
     echo "FAIL $profile AI policy contains a non-US/direct option" >&2
     failed=1
   fi
+
+  # AI traffic must always leave from us1, 35.212.192.172, so an AI service
+  # never sees the exit IP move. Only three transports land there:
+  #   US HTTPS 01  -> us1:443/tcp   (gost)
+  #   US HY2 02    -> us1:4444/udp  (hysteria, direct)
+  #   US HY2 01    -> 139.196.52.175:36000/udp, DNAT'd to us1:4444
+  # US TUIC 01 and US HY2 Relay 01 both land on 192.3.243.194 instead, and
+  # US Auto / Fastest mix the two exits, so none of them may appear here.
+  for group in 'US Only' 'AI'; do
+    line=$(grep -E "^${group} = " "$profile")
+    if [[ -z "$line" ]]; then
+      echo "FAIL $profile missing the ${group} policy group" >&2
+      failed=1
+      continue
+    fi
+    if grep -Eq '(US TUIC 01|US HY2 Relay 01|US Auto|Fastest)' <<<"$line"; then
+      echo "FAIL $profile ${group} contains a member that does not exit from us1" >&2
+      failed=1
+    fi
+  done
+
+  # port-hopping needs a server-side redirect covering the range. us1 has none,
+  # so the parameter would silently break the only direct QUIC path to it.
+  if grep -E '^US HY2 02 = ' "$profile" | grep -q 'port-hopping'; then
+    echo "FAIL $profile US HY2 02 uses port-hopping, which us1 does not redirect" >&2
+    failed=1
+  fi
 done
 
 surge_domestic_set='DOMAIN-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/ChinaMax/ChinaMax_Domain.list,DIRECT'

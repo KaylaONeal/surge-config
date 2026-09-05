@@ -7,7 +7,7 @@ tracked; passwords and other authentication material are not.
 
 | Traffic | Policy | Default exit |
 |---|---|---|
-| AI / LLM services (except Google) | `AI` | US-only fallback pool |
+| AI / LLM services (except Google) | `AI` | always `35.212.192.172` (us1) |
 | Google, Telegram, X and common overseas services | `CF Edge Auto` | Best mainland CF ingress |
 | Domestic services | literal `DIRECT` rules | DIRECT |
 | IBKR overseas sites and trading gateways | `CF Edge Auto` | Best mainland CF ingress |
@@ -16,9 +16,34 @@ tracked; passwords and other authentication material are not.
 | Cloudflare fallback | `CF Edge Auto` | Best of direct/CT/CU/CM EdgeTunnel ingress |
 | Everything unmatched | literal `FINAL,DIRECT` | DIRECT |
 
-AI rules are evaluated before Google, Microsoft and Global rule sets. The
-`US Only` group never falls back to JP or KR. Google AI is deliberately outside
-the `AI` policy and uses `CF Edge Auto` together with the rest of Google.
+AI rules are evaluated before Google, Microsoft and Global rule sets. Google AI
+is deliberately outside the `AI` policy and uses `CF Edge Auto` together with
+the rest of Google.
+
+## Why the AI exit IP cannot move
+
+`US Only` used to be a `fallback` group whose tail held `US TUIC 01` and
+`US HY2 Relay 01`. Both land on `192.3.243.194`, so any failover silently moved
+the public IP that ChatGPT and Claude observe. The group now holds only the
+three transports that terminate on `35.212.192.172`:
+
+| Member | Path to us1 | Transport |
+|---|---|---|
+| `US HY2 02` | direct to `us1:4444` | QUIC |
+| `US HY2 01` | `139.196.52.175:36000`, DNAT'd to `us1:4444` | QUIC |
+| `US HTTPS 01` | direct to `us1:443` | TCP |
+
+Because no member can change the egress IP, the group is a `url-test` rather
+than a `fallback`: latency picks the path, and the exit IP is invariant either
+way. `scripts/check-rules.sh` fails the build if a non-us1 member is added back.
+
+The direct line to us1 measures around 10% packet loss, which TCP handles badly,
+so the two QUIC members are listed first and normally win the test. Keeping the
+Shanghai relay as a member is worthwhile despite its higher latency: it is a
+second, independent path to the same exit.
+
+`US TUIC 01` and `US HY2 Relay 01` remain available in `US Auto`, `Fastest` and
+`Proxy` for non-AI traffic, where a changing exit IP does not matter.
 
 ## Why AI traffic is not chained through Cloudflare
 
