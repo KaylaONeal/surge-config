@@ -9,6 +9,8 @@ tracked; passwords and other authentication material are not.
 |---|---|---|
 | AI / LLM services (except Google) | `AI` | always `35.212.192.172` (us1) |
 | Google, Telegram, X and common overseas services | `CF Edge Auto` | Best mainland CF ingress |
+| YouTube (web, API, video and thumbnails) | `YouTube` | CF auto; manually select US, KR or measured CF SG/US |
+| Backpack and other crypto services | `CF Edge Auto` | Measured SG/US, selected by latency |
 | Domestic services | literal `DIRECT` rules | DIRECT |
 | IBKR overseas sites and trading gateways | `CF Edge Auto` | Best mainland CF ingress |
 | IBKR mainland trading gateway (`*.ibllc.com.cn`) | `DIRECT` | DIRECT |
@@ -59,10 +61,10 @@ mainland home line, bypassing the local Surge tunnel (2026-09-06, 6 samples):
 | chained via CF `188.164.248.21` (SEA colo) | 1.01 s | 0.99 s |
 | chained via CF `104.17.107.60` (HKG colo) | 3.23 s | 1.39 s |
 
-The reason is that the Cloudflare ingress addresses in `CF Edge Auto` do not
-anycast to a nearby colo. Queried from the mainland, `188.164.248.21`,
-`104.26.0.109` and `172.67.66.108` land on **SEA**, `8.35.211.67` on **LAX** and
-`8.35.211.67`/`104.17.107.60` on **SJC**/**HKG**. Only one of six is in Asia.
+Those September 6 probes measured ingress colos, not final exit countries.
+The September 11 per-policy exit measurements are recorded in
+[private/nodes.md](private/nodes.md): Direct/CM currently exit in Singapore,
+CT/CU in the US. Anycast placement and Worker exits can change over time.
 
 For a connection that already crossed the Pacific to reach a US colo, chaining
 adds no shortcut: us1 measures 6 ms to those colos, so the CF-to-us1 leg is
@@ -219,3 +221,29 @@ recovery copy in `~/.config/surge-config/edgetunnel.env`.
 
 Set `SURGE_CONFIG_HOME` to override this local credential directory. Keep the
 directory mode at `0700` and each credential file at `0600`.
+
+## YouTube region selection and crypto routing
+
+In Surge or Shadowrocket, open the `YouTube` policy group and choose:
+
+- `CF Edge Auto` (default): fastest CF ingress; country may switch SG/US.
+- `US Auto`: existing US node pool.
+- `KR Auto`: verified South Korean HTTPS exit.
+- `CF SG Auto` / `CF US Auto`: CF members measured in Singapore / the US.
+
+The manual group uses Surge's documented
+[select policy](https://manual.nssurge.com/policy-groups/overview.html).
+YouTube rules run before broad Google and domestic lists, including inline
+API/video/thumbnail rules when remote lists are unavailable. Reconnect an
+existing video stream after changing the selection; account settings and
+YouTube's own IP classification can also affect the displayed country.
+No Japan option is advertised: the former JP HTTPS node measured as US and
+has been renamed. Country labels on CF nodes reflect the 2026-09-11 measurements,
+not guaranteed permanent locations; see the node inventory for the evidence.
+
+`rules/proxy-extra.list` covers Backpack, Binance, OKX, Bybit, Bitget,
+Coinbase, Kraken, wallets, DeFi, explorers and market-data sites. The
+[Backpack API](https://docs.backpack.exchange/) and WebSocket subdomains
+are covered by `backpack.exchange`; wallet links use `backpack.app`.
+These rules explicitly target `CF Edge Auto`, independently of the manual
+`Proxy` and `YouTube` selections. No shared CDN suffix is broadly proxied.

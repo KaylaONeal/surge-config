@@ -5,6 +5,8 @@ repo_dir=$(cd "$(dirname "$0")/.." && pwd)
 repo_raw_prefix=https://raw.githubusercontent.com/KaylaONeal/surge-config/main/
 failed=0
 
+python3 "$repo_dir/scripts/check-routing.py" || failed=1
+
 urls=$(
   grep -hEo 'https://[^,[:space:]]+\.(list|txt)' \
     "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf" |

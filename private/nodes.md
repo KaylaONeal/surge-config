@@ -5,20 +5,20 @@ authentication material.
 
 | Config name | Protocol | Server | Port | Intended pool | Notes |
 |---|---|---|---:|---|---|
-| `JP HTTPS 01` | HTTPS | `us1.fallback.page` | 443 | JP | Imported from phone node `jp`; verify actual exit country |
+| `US HTTPS 02` | HTTPS | `us1.fallback.page` | 443 | US | Formerly JP; measured US exit 35.212.192.172 on 2026-09-11 |
 | `KR HTTPS 01` | HTTPS | `kr.fallback.page` | 443 | KR | Imported from phone node `kr` |
 | `US HTTPS 01` | HTTPS | `us1.fallback.page` | 443 | US | Uses `www.bing.com` as SNI |
 | `US TUIC 01` | TUIC v5 | `192.3.243.194` | 51443 | US | Imported from phone node `uh`; verify actual exit country |
 | `US HY2 Relay 01` | Hysteria 2 | `139.196.52.175` | 36001 | US | Mainland relay endpoint; verify final exit country |
 | `US HY2 01` | Hysteria 2 | `139.196.52.175` | 36000 | US | Mainland relay endpoint; verify final exit country |
 | `US HY2 02` | Hysteria 2 | `us2.fallback.page` | 4444 | US | Direct QUIC to us1; port hopping removed, unsupported server-side |
-| `CF Edge Direct` | Trojan over WebSocket | `edge.fallback.page` | 443 | CF Edge | Normal DNS/Anycast entry |
-| `CF Edge CT 01` | Trojan over WebSocket | `188.164.248.21` | 443 | CF Edge | China Telecom candidate |
-| `CF Edge CT 02` | Trojan over WebSocket | `8.35.211.67` | 443 | CF Edge | China Telecom candidate |
-| `CF Edge CU 01` | Trojan over WebSocket | `104.26.0.109` | 443 | CF Edge | China Unicom candidate |
-| `CF Edge CU 02` | Trojan over WebSocket | `172.67.66.108` | 443 | CF Edge | China Unicom candidate |
-| `CF Edge CM 01` | Trojan over WebSocket | `104.17.107.60` | 443 | CF Edge | China Mobile candidate |
-| `CF Edge CM 02` | Trojan over WebSocket | `104.17.160.249` | 443 | CF Edge | China Mobile candidate |
+| `CF Edge Direct SG` | Trojan over WebSocket | `edge.fallback.page` | 443 | CF Edge | Normal DNS/Anycast entry |
+| `CF Edge CT 01 US` | Trojan over WebSocket | `188.164.248.21` | 443 | CF Edge | China Telecom candidate |
+| `CF Edge CT 02 US` | Trojan over WebSocket | `8.35.211.67` | 443 | CF Edge | China Telecom candidate |
+| `CF Edge CU 01 US` | Trojan over WebSocket | `104.26.0.109` | 443 | CF Edge | China Unicom candidate |
+| `CF Edge CU 02 US` | Trojan over WebSocket | `172.67.66.108` | 443 | CF Edge | China Unicom candidate |
+| `CF Edge CM 01 SG` | Trojan over WebSocket | `104.17.107.60` | 443 | CF Edge | China Mobile candidate |
+| `CF Edge CM 02 SG` | Trojan over WebSocket | `104.17.160.249` | 443 | CF Edge | China Mobile candidate |
 
 The pool assignments preserve the intent of the exported phone profile. Node
 names and ingress locations do not prove the egress country. Verify each node's
@@ -49,5 +49,37 @@ Host. `CF Edge Auto` tests them on the client and selects the best entry for the
 current network. Cloudflare Worker egress is not guaranteed to be in the US, so
 this group is deliberately excluded from `AI` / `US Only`.
 
-Authentication values live in `private/secrets.env`, which is ignored by Git.
+Authentication values live in `~/.config/surge-config/credentials.env`, outside Git.
 Start from `private/secrets.example.env`.
+
+## Measured exits (2026-09-11, Asia/Shanghai)
+
+Each request was forced through the individual policy using Surge's
+`$httpClient.get({policy: name, ...})`; the active selection was not changed.
+Two independent destination responses agreed on country:
+[IP.SB](https://api.ip.sb/geoip) and
+[Cloudflare trace](https://www.cloudflare.com/cdn-cgi/trace).
+
+| Policy (current name) | IP.SB observed IP | Trace observed IP | Country | Trace destination colo |
+|---|---|---|---|---|
+| CF Edge Direct SG | 138.2.108.213 | 45.139.226.157 | Singapore (SG) | SIN |
+| CF Edge CT 01 US | 104.28.153.4 | 104.28.160.75 | United States (US) | SEA |
+| CF Edge CT 02 US | 104.28.165.56 | 104.28.158.203 | United States (US) | LAX |
+| CF Edge CU 01 US | 104.28.153.11 | 104.28.153.6 | United States (US) | SEA |
+| CF Edge CU 02 US | 104.28.153.6 | 104.28.160.75 | United States (US) | SEA |
+| CF Edge CM 01 SG | 138.2.108.213 | 45.139.226.157 | Singapore (SG) | SIN |
+| CF Edge CM 02 SG | 138.2.108.213 | 45.139.226.157 | Singapore (SG) | SIN |
+| US HTTPS 02 (formerly JP HTTPS 01) | 35.212.192.172 | 35.212.192.172 | United States (US) | SEA |
+| US HTTPS 01 | 35.212.192.172 | 35.212.192.172 | United States (US) | SEA |
+| KR HTTPS 01 | 104.28.211.29 | 104.28.211.29 | South Korea (KR) | ICN |
+
+The table reports destination-observed exit IPs, not geolocation of ingress
+addresses. Trace `colo` is the destination's serving data center. CF IPs differ
+between connections/destinations; the country suffix is a dated observation,
+not a permanent guarantee. `CF Edge Auto` can switch between SG and US.
+`CF SG Auto` and `CF US Auto` limit selection to members observed in that
+country, but cannot force the Worker to keep that egress forever.
+
+The old JP name was incorrect: both HTTPS SNI variants reached the same US
+exit. It is now `US HTTPS 02`, and `JP Auto` is renamed `US HTTPS Auto`.
+There is no verified Japan exit in the current inventory.

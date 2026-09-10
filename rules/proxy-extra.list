@@ -1,8 +1,38 @@
 #!name=Proxy-Extra
 #!desc=Personal domains forced through CF Edge Auto
-#!updated=2026-09-03
+#!updated=2026-09-11
 
 # Prefer DOMAIN-SUFFIX for a service-owned domain and DOMAIN for a shared host.
 # Do not add broad shared CDNs such as amazonaws.com or cloudfront.net.
 # DOMAIN-SUFFIX,example.com
 # DOMAIN,api.example.net
+
+# Exchanges (service-owned domains include their API/WebSocket subdomains).
+# Backpack API: https://docs.backpack.exchange/
+DOMAIN-SUFFIX,backpack.exchange
+DOMAIN-SUFFIX,backpack.app
+DOMAIN-SUFFIX,binance.com
+DOMAIN-SUFFIX,binance.vision
+DOMAIN-SUFFIX,bnbstatic.com
+DOMAIN-SUFFIX,okx.com
+DOMAIN-SUFFIX,okxwallet.com
+DOMAIN-SUFFIX,bybit.com
+DOMAIN-SUFFIX,bybitglobal.com
+DOMAIN-SUFFIX,bitget.com
+DOMAIN-SUFFIX,coinbase.com
+DOMAIN-SUFFIX,kraken.com
+
+# Wallets, DeFi, explorers and market data.
+DOMAIN-SUFFIX,phantom.app
+DOMAIN-SUFFIX,metamask.io
+DOMAIN-SUFFIX,uniswap.org
+DOMAIN-SUFFIX,jup.ag
+DOMAIN-SUFFIX,raydium.io
+DOMAIN-SUFFIX,hyperliquid.xyz
+DOMAIN-SUFFIX,hyperliquid-testnet.xyz
+DOMAIN-SUFFIX,etherscan.io
+DOMAIN-SUFFIX,solscan.io
+DOMAIN-SUFFIX,coingecko.com
+DOMAIN-SUFFIX,coinmarketcap.com
+DOMAIN-SUFFIX,defillama.com
+DOMAIN-SUFFIX,dexscreener.com
