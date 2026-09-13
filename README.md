@@ -19,8 +19,14 @@ tracked; passwords and other authentication material are not.
 | Everything unmatched | literal `FINAL,DIRECT` | DIRECT |
 
 AI rules are evaluated before Google, Microsoft and Global rule sets. Google AI
-is deliberately outside the `AI` policy and uses `CF Edge Auto` together with
-the rest of Google.
+(Gemini, AI Studio, NotebookLM, `generativelanguage.googleapis.com`) is inside
+the `AI` policy: those endpoints are geo-gated and answer "Gemini isn't
+currently supported in your country" whenever the exit country is not on
+Google's list. `CF Edge Auto` cannot serve them, because its Cloudflare Worker
+exits change country with the PoP the url-test picks every 300s. These rules
+must also stay ahead of the inline `DOMAIN-SUFFIX,google.com,CF Edge Auto`
+rule -- Surge stops at the first match, so a Google-AI set placed after it is
+dead. `scripts/check-rules.sh` enforces both the policy and the ordering.
 
 ## Why the AI exit IP cannot move
 

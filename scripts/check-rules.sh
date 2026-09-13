@@ -328,4 +328,29 @@ if grep -Fqx 'DOMAIN-SUFFIX,ibllc.com.cn' "$repo_dir/rules/ibkr.list"; then
   failed=1
 fi
 
+# Gemini/AI Studio are geo-gated: they must leave from the pinned US AI egress,
+# and their rules must precede the inline `google.com` rule -- Surge stops at the
+# first match, so a Google-AI set placed after it never fires.
+for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
+  google_line=$(grep -n '^DOMAIN-SUFFIX,google\.com,' "$profile" | head -1 | cut -d: -f1)
+  for domain in gemini.google.com aistudio.google.com bard.google.com \
+    generativelanguage.googleapis.com makersuite.google.com; do
+    rule_line=$(grep -n "^DOMAIN-SUFFIX,${domain//./\\.},AI$" "$profile" | head -1 | cut -d: -f1)
+    if [[ -z "$rule_line" || -z "$google_line" || "$rule_line" -ge "$google_line" ]]; then
+      echo "FAIL $profile $domain must route to AI before the google.com rule" >&2
+      failed=1
+    fi
+  done
+  for set_url in \
+    "${repo_raw_prefix}rules/google-ai.list" \
+    'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Gemini/Gemini.list' \
+    'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/BardAI/BardAI.list'; do
+    set_line=$(grep -nF "RULE-SET,$set_url,AI" "$profile" | head -1 | cut -d: -f1)
+    if [[ -z "$set_line" || -z "$google_line" || "$set_line" -ge "$google_line" ]]; then
+      echo "FAIL $profile $set_url must route to AI before the google.com rule" >&2
+      failed=1
+    fi
+  done
+done
+
 exit "$failed"
