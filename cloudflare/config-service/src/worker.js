@@ -9,6 +9,7 @@ const SECRET_NAMES = [
   "HY2_USERNAME",
   "HY2_PASSWORD",
   "EDGETUNNEL_UUID",
+  "HTTP_API_KEY",
 ];
 
 function secureEqual(actual, expected) {

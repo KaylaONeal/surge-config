@@ -38,7 +38,7 @@ def check(profile):
                 visit(member, parents + [name])
     for name in groups:
         visit(name, [])
-    assert groups['YouTube'] == ['select', 'CF Edge Auto', 'US Auto', 'KR Auto', 'CF SG Auto', 'CF US Auto']
+    assert groups['YouTube'] == ['select', 'US Auto', 'CF US Auto', 'CF Edge Auto', 'KR Auto', 'CF SG Auto']
     for region in ('SG', 'US'):
         members = [p for p in groups[f'CF {region} Auto'][1:] if '=' not in p]
         assert all(p.endswith(' ' + region) for p in members), members

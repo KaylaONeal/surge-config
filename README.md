@@ -9,7 +9,7 @@ tracked; passwords and other authentication material are not.
 |---|---|---|
 | AI / LLM services (except Google) | `AI` | always `35.212.192.172` (us1) |
 | Google, Telegram, X and common overseas services | `CF Edge Auto` | Best mainland CF ingress |
-| YouTube (web, API, video and thumbnails) | `YouTube` | CF auto; manually select US, KR or measured CF SG/US |
+| YouTube (web, API, video and thumbnails) | `YouTube` | `US Auto` first (hysteria2, native UDP); CF/KR selectable |
 | Backpack and other crypto services | `CF Edge Auto` | Measured SG/US, selected by latency |
 | Domestic services | literal `DIRECT` rules | DIRECT |
 | IBKR overseas sites and trading gateways | `CF Edge Auto` | Best mainland CF ingress |
@@ -247,3 +247,58 @@ Coinbase, Kraken, wallets, DeFi, explorers and market-data sites. The
 are covered by `backpack.exchange`; wallet links use `backpack.app`.
 These rules explicitly target `CF Edge Auto`, independently of the manual
 `Proxy` and `YouTube` selections. No shared CDN suffix is broadly proxied.
+
+## Local HTTP API
+
+Surge's HTTP API exposes the request log and policy state, which is how routing
+problems get diagnosed from another machine. Two things are easy to get wrong:
+
+- **It is a TLS listener.** Plain `http://` requests are accepted and then closed
+  immediately with no error, which looks exactly like a firewall drop. Use
+  `https://` and `-k` (the certificate is self-signed).
+- **Repeated failed attempts get the client IP banned** by Surge's brute-force
+  protection (`Too many unauthorized access from <ip>. The IP address was banned.`).
+
+```sh
+curl -sk -H "X-Key: $HTTP_API_KEY" https://<device-ip>:6171/v1/requests/recent
+curl -sk -H "X-Key: $HTTP_API_KEY" https://<device-ip>:6171/v1/outbound
+```
+
+`/v1/outbound` returns the outbound mode. `{"mode":"rule"}` is the intended
+state; `{"mode":"proxy"}` bypasses the entire rule set and sends *everything*,
+domestic traffic included, through the global policy. Check this first when
+domestic apps feel slow.
+
+The `http-api` lines in `surge.conf` are commented out. Enabling them requires
+an `HTTP_API_KEY` secret on the config-service Worker first, because
+`render()` throws on any placeholder it cannot resolve and would take the whole
+profile endpoint down with a 503. Deploy the secret, then re-add the placeholder
+and uncomment. Until then, enable the API from Surge's own settings UI.
+
+## QUIC
+
+`block-quic = on`. Every Cloudflare EdgeTunnel node is trojan-over-WebSocket with
+`udp-relay=false`, and `udp-policy-not-supported-behaviour = REJECT`, so a QUIC
+attempt to a proxied domain could only fail — but it failed on a timeout rather
+than immediately. Blocking QUIC makes the TCP fallback instant.
+
+## Outbound mode is the first thing to check
+
+Measured on one iPhone, same WeChat session, minutes apart (Surge HTTP API
+`/v1/requests/recent`, n=180 rule-mode requests, n=50 proxy-mode requests):
+
+| | `mode: rule` (DIRECT) | `mode: proxy` (global `Fastest` -> us1) |
+|---|---:|---:|
+| request duration p50 | 131.7 ms | 583 ms |
+| request duration p90 | 210.6 ms | 3279 ms |
+| request duration max | 2126 ms | 6510 ms |
+| downstream throughput | 3.83 Mbps | 0.20 Mbps |
+
+In global proxy mode every request logs `rule: None` and
+`[Rule] Global proxy outbound mode`, and domestic traffic crosses the Pacific
+twice. The us1 line carries roughly 10% packet loss, so a 3.7 KB WeChat video
+chunk took 6.5 s. Rule matching itself is not the bottleneck in either mode:
+on fresh connections it measures p50 8.6 ms, max 28 ms across the full rule set.
+
+To route one app through a proxy, add a rule for it. Do not switch the outbound
+mode globally.

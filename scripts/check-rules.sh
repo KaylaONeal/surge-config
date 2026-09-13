@@ -55,7 +55,13 @@ for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
     failed=1
   fi
 
-  if grep -Eq '^(Domestic|Fallback) = ' "$profile" || grep -Eq '^GEOIP,CN,' "$profile"; then
+  # A bare GEOIP,CN rule forces a DNS resolution before Surge can pick a policy,
+  # which is what this guard exists to prevent. GEOIP,CN,DIRECT,no-resolve does
+  # the opposite: it only matches destinations that are already literal IPs (how
+  # WeChat dials its servers) and short-circuits them before the large lists, so
+  # it is allowed.
+  if grep -Eq '^(Domestic|Fallback) = ' "$profile" ||
+     grep -E '^GEOIP,CN,' "$profile" | grep -qv ',no-resolve$'; then
     echo "FAIL $profile domestic/unknown traffic must not use a remembered group or GEOIP lookup" >&2
     failed=1
   fi

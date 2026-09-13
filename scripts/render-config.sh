@@ -18,6 +18,7 @@ required=(
   TUIC_USERNAME TUIC_PASSWORD TUIC_UUID
   HY2_USERNAME HY2_PASSWORD
   EDGETUNNEL_UUID
+  HTTP_API_KEY
 )
 
 while IFS='=' read -r name value || [[ -n "$name" ]]; do
