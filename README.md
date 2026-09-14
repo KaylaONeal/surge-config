@@ -10,6 +10,8 @@ tracked; passwords and other authentication material are not.
 | AI / LLM services (except Google) | `AI` | always `35.212.192.172` (us1) |
 | Google, Telegram, X and common overseas services | `CF Edge Auto` | Best mainland CF ingress |
 | YouTube (web, API, video and thumbnails) | `YouTube` | `US Auto` first (hysteria2, native UDP); CF/KR selectable |
+| Bybit login, API, WebSocket and assets | `Bybit` | Verified `KR HTTPS 01`; no cross-country fallback |
+| Binance web, API, WebSocket and assets | `Binance` | Verified `KR HTTPS 01`; no cross-country fallback |
 | Backpack and other crypto services | `CF Edge Auto` | Measured SG/US, selected by latency |
 | Domestic services | literal `DIRECT` rules | DIRECT |
 | IBKR overseas sites and trading gateways | `CF Edge Auto` | Best mainland CF ingress |
@@ -247,12 +249,48 @@ No Japan option is advertised: the former JP HTTPS node measured as US and
 has been renamed. Country labels on CF nodes reflect the 2026-09-11 measurements,
 not guaranteed permanent locations; see the node inventory for the evidence.
 
-`rules/proxy-extra.list` covers Backpack, Binance, OKX, Bybit, Bitget,
+`rules/proxy-extra.list` covers Backpack, OKX, Bitget,
 Coinbase, Kraken, wallets, DeFi, explorers and market-data sites. The
 [Backpack API](https://docs.backpack.exchange/) and WebSocket subdomains
 are covered by `backpack.exchange`; wallet links use `backpack.app`.
 These rules explicitly target `CF Edge Auto`, independently of the manual
 `Proxy` and `YouTube` selections. No shared CDN suffix is broadly proxied.
+
+## Bybit IP restriction
+
+Bybit uses the dedicated `Bybit = select, KR HTTPS 01` group in both profiles.
+Inline rules cover `bybit.com`, `bybitglobal.com`, `bybit.global`, `bytick.com`,
+`by-tick.com` and login assets on `bycsi.com`. They precede the general crypto
+and broad domain lists, and work even when remote lists fail to refresh.
+The two legacy Bybit entries in `proxy-extra.list` remain for older profiles;
+current inline rules override them.
+
+During the September 15 investigation, `CF Edge Auto` selected `CF Edge CT 02 US`.
+Cloudflare trace observed `104.28.152.155` / US, and the public
+`https://api.bybit.com/v5/market/time` endpoint returned HTTP 403 with
+"configured to block access from your country". The same probe through
+`KR HTTPS 01` observed `104.28.211.29` / KR and returned HTTP 200, `retCode: 0`.
+The login HTML returned 200 through both paths, so loading the page alone does
+not verify API access. Its asset URLs include `fh-static.bycsi.com`.
+
+Bybit's [restricted-country policy](https://www.bybit.com/en/help-center/article/Service-Restricted-Countries)
+includes both the US and Singapore. Do not add CF/US/DIRECT fallbacks to this
+group. A KR failure should remain visible instead of silently changing country.
+The KR node currently uses WARP, so its IP is an observation, not a permanently
+reserved address. Recheck destination-observed country and the public API if
+access fails again. Network reachability does not establish account eligibility
+or verify a signed-in session.
+
+The follow-up probe also found Binance's `/api/v3/time` returning HTTP 451
+("restricted location") through CF and HTTP 200 through KR. The separate
+`Binance = select, KR HTTPS 01` group covers `binance.com`, `binance.vision` and
+`bnbstatic.com`, including API/WebSocket subdomains. OKX's `/api/v5/public/time`
+and Backpack's `/api/v1/time` returned 200 through both CF and KR; their routing
+is unchanged. Public API success does not test authenticated product access.
+
+`CF SG Auto` also measured as **US** during this investigation (trace exit
+`104.28.158.203`, LAX), and failed the Bybit/Binance probes. Its historical SG
+name must not be treated as a country guarantee.
 
 ## Local HTTP API
 

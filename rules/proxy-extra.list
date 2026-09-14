@@ -11,11 +11,13 @@
 # Backpack API: https://docs.backpack.exchange/
 DOMAIN-SUFFIX,backpack.exchange
 DOMAIN-SUFFIX,backpack.app
+# Legacy coverage; current profiles override Binance through verified KR.
 DOMAIN-SUFFIX,binance.com
 DOMAIN-SUFFIX,binance.vision
 DOMAIN-SUFFIX,bnbstatic.com
 DOMAIN-SUFFIX,okx.com
 DOMAIN-SUFFIX,okxwallet.com
+# Legacy coverage for older profiles; current profiles override these via Bybit.
 DOMAIN-SUFFIX,bybit.com
 DOMAIN-SUFFIX,bybitglobal.com
 DOMAIN-SUFFIX,bitget.com

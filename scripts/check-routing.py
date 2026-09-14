@@ -43,6 +43,9 @@ def check(profile):
         members = [p for p in groups[f'CF {region} Auto'][1:] if '=' not in p]
         assert all(p.endswith(' ' + region) for p in members), members
 
+    for exchange in ('Bybit', 'Binance'):
+        assert groups[exchange] == ['select', 'KR HTTPS 01'], (profile.name, exchange, 'exit must stay on verified KR node')
+
     rules = []
     original = sections['[Rule]']
     for line in original:
@@ -76,9 +79,19 @@ def check(profile):
         'youtubeembeddedplayer.googleapis.com': 'YouTube',
         'video.google.com': 'YouTube', 'youtube-ui.l.google.com': 'YouTube',
         'api.backpack.exchange': 'CF Edge Auto', 'ws.backpack.exchange': 'CF Edge Auto',
-        'backpack.app': 'CF Edge Auto', 'api.binance.com': 'CF Edge Auto',
+        'backpack.app': 'CF Edge Auto', 'api.binance.com': 'Binance',
         'www.okx.com': 'CF Edge Auto', 'app.hyperliquid.xyz': 'CF Edge Auto',
         'api.jup.ag': 'CF Edge Auto', 'www.coingecko.com': 'CF Edge Auto',
+        'www.binance.com': 'Binance', 'fapi.binance.com': 'Binance',
+        'dapi.binance.com': 'Binance', 'stream.binance.com': 'Binance',
+        'data.binance.vision': 'Binance', 'public.bnbstatic.com': 'Binance',
+        'notbinance.com': 'DIRECT', 'binance.com.example': 'DIRECT',
+        'www.bybit.com': 'Bybit', 'api.bybit.com': 'Bybit',
+        'stream.bybit.com': 'Bybit', 'api2.bybit.com': 'Bybit',
+        'www.bybitglobal.com': 'Bybit', 'www.bybit.global': 'Bybit',
+        'www.bytick.com': 'Bybit', 'www.by-tick.com': 'Bybit',
+        'fh-static.bycsi.com': 'Bybit',
+        'notbybit.com': 'DIRECT', 'bybit.com.example': 'DIRECT',
         'www.google.com': 'CF Edge Auto', 'maps.googleapis.com': 'CF Edge Auto',
         'chatgpt.com': 'AI', 'claude.ai': 'AI',
         'www.taobao.com': 'DIRECT', 'kdb.corp.kuaishou.com': 'DIRECT',
@@ -87,6 +100,18 @@ def check(profile):
     }
     for host, expected in cases.items():
         assert route(host) == expected, (profile.name, host, route(host), expected)
+    # Geo-sensitive domains must be inline and precede every broad provider,
+    # including an old cached proxy-extra list that still routes Bybit to CF.
+    bybit_hosts = ('bybit.com', 'bybitglobal.com', 'bybit.global', 'bytick.com', 'by-tick.com', 'bycsi.com')
+    broad = ('rules/proxy-extra.list', 'ChinaMax_Domain.list', '/ruleset/direct.txt',
+             '/ruleset/proxy.txt', 'Global_Domain.list', '/Global/Global.list')
+    exchange_hosts = dict.fromkeys(bybit_hosts, 'Bybit')
+    exchange_hosts.update(dict.fromkeys(('binance.com', 'binance.vision', 'bnbstatic.com'), 'Binance'))
+    for host, policy in exchange_hosts.items():
+        rule = f'DOMAIN-SUFFIX,{host},{policy}'
+        assert original.count(rule) == 1, (profile.name, 'missing/duplicate inline exchange rule', host)
+        assert all(original.index(rule) < i for i, line in enumerate(original)
+                   if any(provider in line for provider in broad)), (profile.name, 'Exchange rule shadowed', host)
     youtube = next(i for i, line in enumerate(original) if '/YouTube/YouTube.list,' in line)
     assert sum('/YouTube/YouTube.list,' in line for line in original) == 1
     assert original[youtube].endswith(',YouTube')
