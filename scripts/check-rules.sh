@@ -296,19 +296,21 @@ done
 
 # IBKR public domains in upstream Global.list would use Proxy/JP, while TWS
 # overseas gateways (*.ibllc.com) are absent upstream and fall through to
-# DIRECT. Keep both on CF Edge, but leave the mainland gateway direct.
+# DIRECT. Pin Mac IBKR to one US egress; preserve the mobile policy and mainland direct rule.
 for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
-  ibkr_rule='RULE-SET,https://raw.githubusercontent.com/KaylaONeal/surge-config/main/rules/ibkr.list,CF Edge Auto'
+  ibkr_policy='CF Edge Auto'
+  [[ "$profile" == "$repo_dir/surge.conf" ]] && ibkr_policy='US Only'
+  ibkr_rule="RULE-SET,https://raw.githubusercontent.com/KaylaONeal/surge-config/main/rules/ibkr.list,$ibkr_policy"
   ibkr_line=$(grep -nF "$ibkr_rule" "$profile" | head -1 | cut -d: -f1)
   global_line=$(grep -n 'ios_rule_script/master/rule/Surge/Global/Global.list,CF Edge Auto' "$profile" | head -1 | cut -d: -f1)
   mainland_line=$(grep -nF 'DOMAIN-SUFFIX,ibllc.com.cn,DIRECT' "$profile" | head -1 | cut -d: -f1)
 
   if [[ -z "$ibkr_line" || -z "$global_line" || "$ibkr_line" -ge "$global_line" ]]; then
-    echo "FAIL $profile IBKR CF Edge rule missing or follows Global.list" >&2
+    echo "FAIL $profile IBKR expected egress rule missing or follows Global.list" >&2
     failed=1
   fi
   if [[ -z "$mainland_line" || -z "$ibkr_line" || "$mainland_line" -ge "$ibkr_line" ]]; then
-    echo "FAIL $profile IBKR mainland DIRECT rule must precede CF Edge rule" >&2
+    echo "FAIL $profile IBKR mainland DIRECT rule must precede overseas rule" >&2
     failed=1
   fi
 done

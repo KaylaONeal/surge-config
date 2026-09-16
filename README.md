@@ -14,7 +14,7 @@ tracked; passwords and other authentication material are not.
 | Binance web, API, WebSocket and assets | `Binance` | Verified `KR HTTPS 01`; no cross-country fallback |
 | Backpack and other crypto services | `CF Edge Auto` | Measured SG/US, selected by latency |
 | Domestic services | literal `DIRECT` rules | DIRECT |
-| IBKR overseas sites and trading gateways | `CF Edge Auto` | Best mainland CF ingress |
+| IBKR overseas sites and trading gateways | Surge: `US Only`; Shadowrocket: `CF Edge Auto` | Mac uses fixed us1 egress to avoid trading/data session IP mismatch |
 | IBKR mainland trading gateway (`*.ibllc.com.cn`) | `DIRECT` | DIRECT |
 | Ads | `AdBlock` | REJECT, switchable to DIRECT |
 | Cloudflare fallback | `CF Edge Auto` | Best of direct/CT/CU/CM EdgeTunnel ingress |
