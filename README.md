@@ -7,7 +7,7 @@ tracked; passwords and other authentication material are not.
 
 | Traffic | Policy | Default exit |
 |---|---|---|
-| AI / LLM services (except Google) | `AI` | always `35.212.192.172` (us1) |
+| AI / LLM services (including Google AI) | `AI` | always `35.212.192.172` (us1) |
 | Google, Telegram, X and common overseas services | `CF Edge Auto` | Best mainland CF ingress |
 | YouTube (web, API, video and thumbnails) | `YouTube` | `US Auto` first (hysteria2, native UDP); CF/KR selectable |
 | Bybit login, API, WebSocket and assets | `Bybit` | Verified `KR HTTPS 01`; no cross-country fallback |
@@ -29,6 +29,22 @@ exits change country with the PoP the url-test picks every 300s. These rules
 must also stay ahead of the inline `DOMAIN-SUFFIX,google.com,CF Edge Auto`
 rule -- Surge stops at the first match, so a Google-AI set placed after it is
 dead. `scripts/check-rules.sh` enforces both the policy and the ordering.
+
+## Antigravity / Gemini CLI routing
+
+`agy` uses `daily-cloudcode-pa.googleapis.com`; Gemini CLI and other builds
+also use `cloudcode-pa.googleapis.com` and the explicit sandbox endpoints in
+`rules/google-ai.list`. Both profiles pin these to `AI` before the broad
+`googleapis.com` rule. Antigravity product and feature-control domains
+(`antigravity.google`, `antigravity.goog`, `antigravity-unleash.goog`) use the
+same policy. Inline entries keep this working with stale remote rule caches.
+
+On September 17, `agy -p 'hello'` failed with `FAILED_PRECONDITION` while its
+inference request matched the broad Google rule. A per-policy ipinfo probe
+measured `CF Edge Auto` at `104.28.163.84` / HK despite the selected member's
+US label; `AI` measured `35.212.192.172` / US. An ordinary ipinfo visit reports
+its own route, so use policy-specific probes and actual agy request logs.
+`scripts/check-routing.py` checks CLI routing and inline priority.
 
 ## Why the AI exit IP cannot move
 

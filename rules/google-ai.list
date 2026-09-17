@@ -1,6 +1,6 @@
 # NAME: Google-AI
 # DESC: Google/DeepMind AI product domains routed with the US-only AI policy
-# UPDATED: 2026-09-14
+# UPDATED: 2026-09-17
 # TYPE: Surge RULE-SET (Shadowrocket compatible)
 # NOTE: Gemini and AI Studio are geo-gated and refuse unsupported regions, so
 # these ride the AI group (one pinned US egress IP) rather than CF Edge Auto,
@@ -15,3 +15,12 @@ DOMAIN-SUFFIX,makersuite.google.com
 DOMAIN-SUFFIX,deepmind.com
 DOMAIN-SUFFIX,deepmind.google
 DOMAIN-SUFFIX,notebooklm.google
+
+# Antigravity / Gemini CLI
+DOMAIN-SUFFIX,cloudcode-pa.googleapis.com
+DOMAIN-SUFFIX,daily-cloudcode-pa.googleapis.com
+DOMAIN-SUFFIX,autopush-cloudcode-pa.sandbox.googleapis.com
+DOMAIN-SUFFIX,preprod-daily-cloudcode-pa.sandbox.googleapis.com
+DOMAIN-SUFFIX,antigravity.google
+DOMAIN-SUFFIX,antigravity.goog
+DOMAIN-SUFFIX,antigravity-unleash.goog

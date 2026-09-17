@@ -71,7 +71,13 @@ def check(profile):
                 kind == 'DOMAIN-KEYWORD' and value in host):
                 return fields[2]
 
+    google_ai_hosts = ('gemini.google.com', 'generativelanguage.googleapis.com',
+                       'cloudcode-pa.googleapis.com', 'daily-cloudcode-pa.googleapis.com',
+                       'autopush-cloudcode-pa.sandbox.googleapis.com',
+                       'preprod-daily-cloudcode-pa.sandbox.googleapis.com',
+                       'antigravity.google', 'antigravity.goog', 'antigravity-unleash.goog')
     cases = {
+        **dict.fromkeys(google_ai_hosts, 'AI'),
         'www.youtube.com': 'YouTube', 'youtu.be': 'YouTube',
         'www.youtube-nocookie.com': 'YouTube', 'i.ytimg.com': 'YouTube',
         'rr1.googlevideo.com': 'YouTube', 'yt3.ggpht.com': 'YouTube',
@@ -100,6 +106,13 @@ def check(profile):
     }
     for host, expected in cases.items():
         assert route(host) == expected, (profile.name, host, route(host), expected)
+    for host in google_ai_hosts:
+        rule = f'DOMAIN-SUFFIX,{host},AI'
+        assert original.count(rule) == 1, (profile.name, 'missing/duplicate inline AI rule', host)
+        assert all(original.index(rule) < i for i, line in enumerate(original)
+                   if any(provider in line for provider in ('DOMAIN-SUFFIX,google.com,',
+                          'DOMAIN-SUFFIX,googleapis.com,', 'rules/proxy-extra.list',
+                          'ChinaMax_Domain.list', '/ruleset/direct.txt', '/Google/Google.list'))), (profile.name, 'AI rule shadowed', host)
     # Geo-sensitive domains must be inline and precede every broad provider,
     # including an old cached proxy-extra list that still routes Bybit to CF.
     bybit_hosts = ('bybit.com', 'bybitglobal.com', 'bybit.global', 'bytick.com', 'by-tick.com', 'bycsi.com')
