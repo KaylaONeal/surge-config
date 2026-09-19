@@ -103,6 +103,8 @@ def check(profile):
         'www.taobao.com': 'DIRECT', 'kdb.corp.kuaishou.com': 'DIRECT',
         'adlp.corp.kuaishou.com': 'REJECT', 'unknown.example': 'DIRECT',
         'notbackpack.exchange': 'DIRECT', 'backpack.exchange.example': 'DIRECT',
+        'api.cloudflare.com': 'DIRECT',
+        'quant-kclaw.pages.dev': 'DIRECT',
     }
     for host, expected in cases.items():
         assert route(host) == expected, (profile.name, host, route(host), expected)
