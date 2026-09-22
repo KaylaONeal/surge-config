@@ -30,6 +30,8 @@ def check(profile):
     for name, parts in groups.items():
         members = [p for p in parts[1:] if '=' not in p]
         assert members and all(p in policies for p in members), (name, members)
+        if parts[0] == 'smart':
+            assert all(p not in groups and p not in {'DIRECT', 'REJECT'} for p in members), (name, 'Smart requires leaf proxies')
 
     def visit(name, parents):
         assert name not in parents, ('group cycle', parents, name)
@@ -38,6 +40,18 @@ def check(profile):
                 visit(member, parents + [name])
     for name in groups:
         visit(name, [])
+    pinned = {'US HY2 02', 'US HY2 01', 'US HTTPS 01'}
+
+    def exits(name):
+        if name not in groups:
+            return {name}
+        return set().union(*(exits(p) for p in groups[name][1:] if '=' not in p))
+
+    for name in ('AI', 'US Only', 'Download'):
+        assert exits(name) == pinned, (profile.name, name, 'must retain only fixed-us1 transports')
+    assert groups['US Only'][0] == ('smart' if profile.name == 'surge.conf' else 'url-test')
+    assert groups['AI'][:2] == ['select', 'US Only']
+    assert groups['Download'][:2] == ['select', 'US HY2 02']
     assert groups['YouTube'] == ['select', 'US Auto', 'CF US Auto', 'CF Edge Auto', 'KR Auto', 'CF SG Auto']
     for region in ('SG', 'US'):
         members = [p for p in groups[f'CF {region} Auto'][1:] if '=' not in p]
@@ -76,8 +90,21 @@ def check(profile):
                        'autopush-cloudcode-pa.sandbox.googleapis.com',
                        'preprod-daily-cloudcode-pa.sandbox.googleapis.com',
                        'antigravity.google', 'antigravity.goog', 'antigravity-unleash.goog')
+    download_hosts = ('persistent.oaistatic.com', 'releases.openai.com',
+                      'downloads.claude.ai', 'registry.npmjs.org',
+                      'release-assets.githubusercontent.com', 'objects.githubusercontent.com',
+                      'github-releases.githubusercontent.com')
     cases = {
         **dict.fromkeys(google_ai_hosts, 'AI'),
+        **dict.fromkeys(download_hosts, 'Download'),
+        'muse.ai': 'AI', 'auth.muse.ai': 'AI', 'api.muse.ai': 'AI',
+        'www.facebook.com': 'AI', 'www.instagram.com': 'AI', 'auth.meta.com': 'AI',
+        'notmuse.ai': 'DIRECT', 'muse.ai.example': 'DIRECT',
+        'api.openai.com': 'AI', 'api.anthropic.com': 'AI',
+        'cdn.oaistatic.com': 'AI', 'notreleases.openai.com': 'AI',
+        'storage.googleapis.com': 'CF Edge Auto',
+        'releases.openai.com.example': 'DIRECT',
+        'sub.registry.npmjs.org': 'DIRECT',
         'www.youtube.com': 'YouTube', 'youtu.be': 'YouTube',
         'www.youtube-nocookie.com': 'YouTube', 'i.ytimg.com': 'YouTube',
         'rr1.googlevideo.com': 'YouTube', 'yt3.ggpht.com': 'YouTube',
@@ -108,6 +135,23 @@ def check(profile):
     }
     for host, expected in cases.items():
         assert route(host) == expected, (profile.name, host, route(host), expected)
+    assert original[-1] == 'FINAL,DIRECT', (profile.name, 'unknown traffic must stay direct')
+    for host in download_hosts:
+        rule = f'DOMAIN,{host},Download'
+        assert original.count(rule) == 1, (profile.name, 'missing/duplicate download rule', host)
+        assert all(original.index(rule) < i for i, line in enumerate(original)
+                   if any(provider in line for provider in ('DOMAIN-SUFFIX,openai.com,',
+                          'DOMAIN-SUFFIX,oaistatic.com,', 'DOMAIN-SUFFIX,claude.ai,',
+                          'rules/ai-extra.list', 'ChinaMax_Domain.list', '/ruleset/direct.txt',
+                          '/GitHub/GitHub.list', '/Developer/Developer.list', '/ruleset/proxy.txt',
+                          'Global_Domain.list', '/Global/Global.list'))), (profile.name, 'Download rule shadowed', host)
+    for rule in ('DOMAIN-SUFFIX,muse.ai,AI', 'DOMAIN,www.facebook.com,AI',
+                 'DOMAIN,www.instagram.com,AI', 'DOMAIN,auth.meta.com,AI'):
+        assert original.count(rule) == 1, (profile.name, 'missing/duplicate Muse rule', rule)
+        assert all(original.index(rule) < i for i, line in enumerate(original)
+                   if any(provider in line for provider in ('rules/ai-extra.list', 'rules/proxy-extra.list',
+                          'ChinaMax_Domain.list', '/ruleset/direct.txt', '/ruleset/proxy.txt',
+                          'Global_Domain.list', '/Global/Global.list'))), (profile.name, 'Muse rule shadowed', rule)
     for host in google_ai_hosts:
         rule = f'DOMAIN-SUFFIX,{host},AI'
         assert original.count(rule) == 1, (profile.name, 'missing/duplicate inline AI rule', host)

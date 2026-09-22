@@ -8,6 +8,7 @@ tracked; passwords and other authentication material are not.
 | Traffic | Policy | Default exit |
 |---|---|---|
 | AI / LLM services (including Google AI) | `AI` | always `35.212.192.172` (us1) |
+| Codex / Claude installers, npm and GitHub release assets | `Download` | `US HY2 02` first; all options retain the us1 exit |
 | Google, Telegram, X and common overseas services | `CF Edge Auto` | Best mainland CF ingress |
 | YouTube (web, API, video and thumbnails) | `YouTube` | `US Auto` first (hysteria2, native UDP); CF/KR selectable |
 | Bybit login, API, WebSocket and assets | `Bybit` | Verified `KR HTTPS 01`; no cross-country fallback |
@@ -59,9 +60,12 @@ three transports that terminate on `35.212.192.172`:
 | `US HY2 01` | `139.196.52.175:36000`, DNAT'd to `us1:4444` | QUIC |
 | `US HTTPS 01` | direct to `us1:443` | TCP |
 
-Because no member can change the egress IP, the group is a `url-test` rather
-than a `fallback`: latency picks the path, and the exit IP is invariant either
-way. `scripts/check-rules.sh` fails the build if a non-us1 member is added back.
+Surge uses a `smart` group to select among these paths using real connection
+quality and failure handling. Shadowrocket retains a compatible `url-test`
+group. Both keep the same exit IP. `scripts/check-rules.sh` fails the build if
+a non-us1 member is added back. A client's remembered `AI` selection must be
+`US Only` to use automatic selection; a remembered individual proxy bypasses it.
+Basic Smart groups require Surge Mac 5.7.0+ or iOS 5.11.0+ with Smart unlocked.
 
 The direct line to us1 measures around 10% packet loss, which TCP handles badly,
 so the two QUIC members are listed first and normally win the test. Keeping the
@@ -70,6 +74,35 @@ second, independent path to the same exit.
 
 `US TUIC 01` and `US HY2 Relay 01` remain available in `US Auto`, `Fastest` and
 `Proxy` for non-AI traffic, where a changing exit IP does not matter.
+
+## Installation downloads and Muse
+
+`Download` defaults to `US HY2 02`, with `US Only`, `US HY2 01` and
+`US HTTPS 01` available as alternatives. Exact inline host rules precede the
+broad AI and GitHub sets: `persistent.oaistatic.com`, `releases.openai.com`,
+`downloads.claude.ai`, `registry.npmjs.org`, `release-assets.githubusercontent.com`,
+`objects.githubusercontent.com` and `github-releases.githubusercontent.com`.
+API and account traffic continues to use `AI`; shared cloud/CDN suffixes are
+not treated as download-only services. Older Claude versions using
+`storage.googleapis.com` retain the existing Google route.
+
+The September 22 comparison found the direct HY2 transport faster on the same
+official files and verified that it retains the HTTPS path's US exit. Short
+Range samples are evidence for the initial selection, not a sustained-bandwidth
+guarantee; Smart optimizes connection quality rather than download throughput.
+See the [measurements and review](docs/reviews/2026-09-22-routing-review.md).
+
+Muse's first-party domains use the inline `DOMAIN-SUFFIX,muse.ai,AI` rule,
+also maintained in `rules/ai-extra.list`. The observed sign-in chain redirects
+through `auth.muse.ai`, `www.facebook.com`, `www.instagram.com` and
+`auth.meta.com`, so those exact Meta hosts also use `AI` to retain the same
+exit throughout sign-in. This affects other requests to these three Meta hosts
+too; their entire domain/CDN suffixes are not overridden. The public redirect
+chain finishes at the Muse landing page (HTTP 200); authenticated account
+access is a separate check.
+
+Unknown domains continue to use `FINAL,DIRECT`, as explicitly retained on
+September 22. New services still need a maintained domain override.
 
 ## Why AI traffic is not chained through Cloudflare
 

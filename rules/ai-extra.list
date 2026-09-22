@@ -1,6 +1,6 @@
 # NAME: AI-Extra
 # DESC: Maintained AI/LLM product and exact dependency domains
-# UPDATED: 2026-09-01
+# UPDATED: 2026-09-22
 # TYPE: Surge RULE-SET (Shadowrocket compatible)
 
 # --- OpenAI adjacent ---
@@ -45,6 +45,12 @@ DOMAIN-SUFFIX,claudeusercontent.com
 DOMAIN-SUFFIX,claude.site
 DOMAIN-SUFFIX,claudemcpclient.com
 DOMAIN-SUFFIX,claudemcpcontent.com
+
+# --- Muse (including auth.muse.ai); observed Meta sign-in redirect hosts ---
+DOMAIN-SUFFIX,muse.ai
+DOMAIN,www.facebook.com
+DOMAIN,www.instagram.com
+DOMAIN,auth.meta.com
 
 # --- xAI / Grok ---
 DOMAIN-SUFFIX,x.ai

@@ -38,7 +38,7 @@ for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
   for domain in \
     openai.com chatgpt.com oaistatic.com oaiusercontent.com sora.com \
     anthropic.com claude.ai claude.com claudeusercontent.com claude.site \
-    claudemcpclient.com claudemcpcontent.com; do
+    claudemcpclient.com claudemcpcontent.com muse.ai; do
     if ! grep -Eq "^DOMAIN-SUFFIX,${domain//./\\.},AI$" "$profile"; then
       echo "FAIL $profile missing inline AI rule for $domain" >&2
       failed=1
