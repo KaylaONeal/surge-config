@@ -26,7 +26,7 @@ AI rules are evaluated before Google, Microsoft and Global rule sets. Google AI
 the `AI` policy: those endpoints are geo-gated and answer "Gemini isn't
 currently supported in your country" whenever the exit country is not on
 Google's list. `CF Edge Auto` cannot serve them, because its Cloudflare Worker
-exits change country with the PoP the url-test picks every 300s. These rules
+exits can change country when url-test selects a different PoP. These rules
 must also stay ahead of the inline `DOMAIN-SUFFIX,google.com,CF Edge Auto`
 rule -- Surge stops at the first match, so a Google-AI set placed after it is
 dead. `scripts/check-rules.sh` enforces both the policy and the ordering.
@@ -158,6 +158,25 @@ answers `NXDOMAIN` for them, which is why they fail to open. Both profiles keep
 the company domains in `bypass-dns` plus `[Host] ... = server:syslib`, and
 neither profile may enable encrypted DNS. Add new company suffixes to all three
 places at once.
+
+## Probe frequency and cached configuration
+
+Both profiles use a 7200-second (2-hour) interval for `url-test` groups.
+Surge keeps the previous selection while refreshing expired results in the
+background, and `evaluate-before-use=false` avoids blocking first use on a
+successful probe (first use without a result uses the first member). Network
+changes and connection failures can trigger earlier tests; 2 hours is not a
+hard retry limit. Shadowrocket's failure behavior remains client-controlled.
+
+The Surge managed profile still updates daily with `strict=false`, so a failed
+subscription update permits use of the last downloaded local profile. This
+does not make an unavailable proxy work, and there is no claim that all-failed
+node tests preserve the last successful selection indefinitely.
+
+The [September 30 quota investigation](docs/reviews/2026-09-30-cloudflare-quota.md)
+found EdgeTunnel traffic, rather than profile downloads, dominated Workers
+requests. Less frequent testing reduces probe overhead but does not cap actual
+proxy connections or prevent account quota exhaustion.
 
 ## Upstream rule synchronization
 
