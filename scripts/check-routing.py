@@ -53,6 +53,15 @@ def check(profile):
     assert groups['AI'][:2] == ['select', 'US Only']
     assert groups['Download'][:2] == ['select', 'US HY2 02']
     assert groups['YouTube'] == ['select', 'US Auto', 'CF US Auto', 'CF Edge Auto', 'KR Auto', 'CF SG Auto']
+    cf_leaves = {line.split('=', 1)[0].strip() for line in sections['[Proxy]']
+                 if line.startswith('CF Edge ')}
+    assert len(cf_leaves) == 7, (profile.name, 'must retain all seven CF ingress nodes')
+    assert groups['CF Edge Auto'][0] == ('smart' if profile.name == 'surge.conf' else 'url-test')
+    assert exits('CF Edge Auto') == cf_leaves, (profile.name, 'CF Auto must retry only within CF')
+    if profile.name == 'surge.conf':
+        assert 'evaluate-before-use = false' in groups['CF Edge Auto']
+        assert not any(p.startswith(('interval', 'tolerance')) for p in groups['CF Edge Auto'][1:]), \
+            'Smart uses its own test schedule, not url-test interval/tolerance'
     for region in ('SG', 'US'):
         members = [p for p in groups[f'CF {region} Auto'][1:] if '=' not in p]
         assert all(p.endswith(' ' + region) for p in members), members

@@ -52,3 +52,35 @@ keep the original Worker and KV as an archive rather than deleting their data.
 The upstream Worker is intentionally pinned. Review upstream changes before
 deploying a newer commit because the Worker can initiate arbitrary outbound TCP
 connections.
+
+## Native Surge selection (2026-10-01)
+
+`CF Edge Auto` in `surge.conf` uses Surge's native `smart` group on Mac and iOS.
+Its members remain the same seven Trojan-over-WebSocket CF ingress nodes. Real
+connection quality, retransmissions, first-response latency and per-site history
+inform selection; unavailable members can be retried using another CF member.
+The WebSocket transport, Pages deployment, secrets, rules and all non-CF groups
+are unchanged. No external program, local adapter, XHTTP or HTTP/3 client is
+installed by this change.
+
+Smart requires Mac 5.7.0+ or iOS 5.11.0+ with Smart unlocked. It is not purely
+passive: it has a fixed five-minute health-test schedule, so `interval=7200` and
+`tolerance` are omitted. Seven members on 288 daily rounds imply approximately
+2,016 scheduled proxy requests per continuously testing device per day, compared
+with 84 on a two-hour schedule; startup/network/failure tests and real traffic
+are additional. This is a planning estimate, not a measured request count.
+`evaluate-before-use=false` avoids waiting for an initial test on first use.
+CF region pools and the Shadowrocket profile keep their existing two-hour
+`url-test` behavior. The basic Smart behavior works on the installed Mac 5.7.6;
+the newer three-second silent-failure handling requires Mac 6.8.0+/iOS 5.21.0+
+and is not claimed for this machine.
+
+The dedicated free account remains fail-closed on quota exhaustion. Smart
+selection cannot recover an account-wide quota failure, does not preserve a
+fixed exit country, and does not resume an already established TCP session on
+another node. Existing CF connections need not move when the preferred member
+changes. Connections using the fixed AI, download, exchange or DIRECT policies
+keep their original path.
+
+References: [Surge Smart group](https://manual.nssurge.com/policy-groups/smart.html),
+[Surge Trojan transport](https://manual.nssurge.com/policies/trojan.html).
