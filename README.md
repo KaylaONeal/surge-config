@@ -302,6 +302,11 @@ preview use `fail_open=false`: when the dedicated account exhausts its free
 quota, EdgeTunnel is allowed to stop until the quota resets. The old
 `edge.fallback.page` ingress is retired after the new client path is verified.
 
+Surge routes `*.argotunnel.com` through the native `US Only` pool before
+broad lists, so business Cloudflare Tunnel connectors do not depend on
+EdgeTunnel's free quota. The desktop tunnel exception is intentionally not
+added to the phone profile.
+
 Authentication values remain Cloudflare Worker secrets with an ignored local
 recovery copy in `~/.config/surge-config/edgetunnel.env`. Migration details and
 the deployed module checksum are in [cloudflare/edgetunnel/README.md](cloudflare/edgetunnel/README.md).

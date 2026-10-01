@@ -133,6 +133,13 @@ def check(profile):
         'api.cloudflare.com': 'DIRECT',
         'quant-kclaw.pages.dev': 'DIRECT',
     }
+    if profile.name == 'surge.conf':
+        cases.update(dict.fromkeys(('argotunnel.com', 'region1.v2.argotunnel.com',
+                                   'region2.v2.argotunnel.com'), 'US Only'))
+        tunnel_rule = 'DOMAIN-SUFFIX,argotunnel.com,US Only'
+        assert original.count(tunnel_rule) == 1, (profile.name, 'missing native tunnel route')
+        assert all(original.index(tunnel_rule) < i for i, line in enumerate(original)
+                   if line.startswith(('RULE-SET,', 'DOMAIN-SET,'))), (profile.name, 'Tunnel route shadowed')
     for host, expected in cases.items():
         assert route(host) == expected, (profile.name, host, route(host), expected)
     assert original[-1] == 'FINAL,DIRECT', (profile.name, 'unknown traffic must stay direct')
