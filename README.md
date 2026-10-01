@@ -291,9 +291,20 @@ Surge Mac 6.7 or later can use the same browser install button. On older Mac
 versions, use **Profiles > Download Profile from URL** and paste the protected
 managed-profile URL, or update Surge first.
 
-`edge.fallback.page` hosts the separately deployed EdgeTunnel Worker. Its
-authentication values are Cloudflare Worker secrets with an ignored local
-recovery copy in `~/.config/surge-config/edgetunnel.env`.
+`edge-bcd7d61c.pages.dev` hosts EdgeTunnel as a Pages Function in the
+dedicated Cloudflare account registered as `infra cloudflare-edgetunnel`.
+Its Functions and KV quota is separate from the original account serving
+`config.fallback.page` and other business services. CF node server names, TLS
+SNI and WebSocket Host headers use this new ingress; policy groups and rules
+retain their existing behavior. Pages deploys the same pinned Worker module
+directly, without forwarding through the original account. Production and
+preview use `fail_open=false`: when the dedicated account exhausts its free
+quota, EdgeTunnel is allowed to stop until the quota resets. The old
+`edge.fallback.page` ingress is retired after the new client path is verified.
+
+Authentication values remain Cloudflare Worker secrets with an ignored local
+recovery copy in `~/.config/surge-config/edgetunnel.env`. Migration details and
+the deployed module checksum are in [cloudflare/edgetunnel/README.md](cloudflare/edgetunnel/README.md).
 
 Set `SURGE_CONFIG_HOME` to override this local credential directory. Keep the
 directory mode at `0700` and each credential file at `0600`.
