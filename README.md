@@ -14,6 +14,7 @@ tracked; passwords and other authentication material are not.
 | Bybit login, API, WebSocket and assets | `Bybit` | Verified `KR HTTPS 01`; no cross-country fallback |
 | Binance web, API, WebSocket and assets | `Binance` | Verified `KR HTTPS 01`; no cross-country fallback |
 | Backpack and other crypto services | `CF Edge Auto` | Measured SG/US, selected by latency |
+| Futu selected trade hosts (`trade.futunn.com`, `fututrade.com` and its subdomains) | `CF Edge Auto` | Domain-only exception; does not establish complete trading coverage |
 | Domestic services | literal `DIRECT` rules | DIRECT |
 | IBKR overseas sites and trading gateways | Surge: `US Only`; Shadowrocket: `CF Edge Auto` | Mac uses fixed us1 egress to avoid trading/data session IP mismatch |
 | IBKR mainland trading gateway (`*.ibllc.com.cn`) | `DIRECT` | DIRECT |
