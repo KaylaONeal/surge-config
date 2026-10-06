@@ -104,6 +104,13 @@ def check(profile):
                       'release-assets.githubusercontent.com', 'objects.githubusercontent.com',
                       'github-releases.githubusercontent.com')
     cases = {
+        **dict.fromkeys(('ntfyx.me', 'staging.ntfyx.me', 'api.ntfyx.me',
+                        'api.staging.ntfyx.me', 'app.ntfyx.me', 'app.staging.ntfyx.me',
+                        'gateway.ntfyx.me', 'gateway.staging.ntfyx.me', 'status.ntfyx.me',
+                        'quant.fallback.page', 'share.fallback.page',
+                        'arb.fallback.page', 'discord.fallback.page'), 'US Only'),
+        'notntfyx.me': 'DIRECT', 'ntfyx.me.example': 'DIRECT',
+        'quant.fallback.page.example': 'DIRECT', 'unrelated.fallback.page': 'DIRECT',
         **dict.fromkeys(google_ai_hosts, 'AI'),
         **dict.fromkeys(download_hosts, 'Download'),
         'muse.ai': 'AI', 'auth.muse.ai': 'AI', 'api.muse.ai': 'AI',
