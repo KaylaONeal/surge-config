@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Check first-match routing with local rules, without remote-provider availability."""
 from pathlib import Path
+from ipaddress import ip_address, ip_network
 
 ROOT = Path(__file__).resolve().parent.parent
 PREFIX = 'https://raw.githubusercontent.com/KaylaONeal/surge-config/main/'
@@ -58,6 +59,9 @@ def check(profile):
     assert len(cf_leaves) == 7, (profile.name, 'must retain all seven CF ingress nodes')
     assert groups['CF Edge Auto'][0] == ('smart' if profile.name == 'surge.conf' else 'url-test')
     assert exits('CF Edge Auto') == cf_leaves, (profile.name, 'CF Auto must retry only within CF')
+    assert groups['Futu'][:3] == ['fallback', 'CF Edge Auto', 'DIRECT']
+    assert exits('Futu') == cf_leaves | {'DIRECT'}
+    assert 'interval = 60' in groups['Futu']
     if profile.name == 'surge.conf':
         assert 'evaluate-before-use = false' in groups['CF Edge Auto']
         assert not any(p.startswith(('interval', 'tolerance')) for p in groups['CF Edge Auto'][1:]), \
@@ -84,11 +88,19 @@ def check(profile):
         else:
             rules.append(fields)
 
-    def route(host):
+    def route(host, process=None):
+        try:
+            address = ip_address(host)
+        except ValueError:
+            address = None
         for fields in rules:
             kind, value = fields[:2]
             if kind == 'FINAL':
                 return value
+            if kind == 'PROCESS-NAME' and process == value:
+                return fields[2]
+            if kind in ('IP-CIDR', 'IP-CIDR6') and address is not None and address in ip_network(value):
+                return fields[2]
             if (kind == 'DOMAIN' and host == value or
                 kind == 'DOMAIN-SUFFIX' and (host == value or host.endswith('.' + value)) or
                 kind == 'DOMAIN-KEYWORD' and value in host):
@@ -149,7 +161,30 @@ def check(profile):
         'notbackpack.exchange': 'DIRECT', 'backpack.exchange.example': 'DIRECT',
         'api.cloudflare.com': 'DIRECT',
         'quant-kclaw.pages.dev': 'DIRECT',
+        **dict.fromkeys(('trade.futunn.com', 'openapi.futunn.com', 'api5.futunn.com',
+                        'q.futunn.com', 'collect.futunn.com', 'fututrade.com',
+                        'api.fututrade.com', 'qtcardfthk.futufin.com',
+                        'www.futuhk.com', 'cdn.futustatic.com', 'www.moomoo.com',
+                        'collect.us.moomoocrypto.com'), 'Futu'),
+        'notfutunn.com': 'DIRECT', 'futunn.com.example': 'DIRECT',
+        'notfututrade.com': 'DIRECT', 'fututrade.com.example': 'DIRECT',
     }
+    futu_rules = [line for line in original if line.endswith(',Futu')]
+    assert len(futu_rules) >= 46
+    fast_path = original.index('GEOIP,CN,DIRECT,no-resolve')
+    assert all(original.index(line) < fast_path for line in futu_rules), 'Futu shadowed by domestic routing'
+    opend = '/Applications/Futu_OpenD.app/Contents/MacOS/Futu_OpenD'
+    process_rule = f'PROCESS-NAME,{opend},Futu'
+    if profile.name == 'surge.conf':
+        assert original.count(process_rule) == 1
+        assert f'#!MACOS-ONLY\n{process_rule}' in profile.read_text()
+        assert 'evaluate-before-use = true' in groups['Futu']
+        for host in ('170.106.47.242', '106.55.66.56', '47.250.12.193', 'unknown.example'):
+            assert route(host, opend) == 'Futu', (host, 'OpenD public destination bypassed')
+        assert route('192.168.50.12', opend) == 'DIRECT', 'LAN must remain direct'
+        assert route('unknown.example', '/tmp/Futu_OpenD') == 'DIRECT', 'Process path must be exact'
+    else:
+        assert process_rule not in original, 'macOS process rule must not enter Shadowrocket'
     if profile.name == 'surge.conf':
         cases.update(dict.fromkeys(('argotunnel.com', 'region1.v2.argotunnel.com',
                                    'region2.v2.argotunnel.com'), 'US Only'))

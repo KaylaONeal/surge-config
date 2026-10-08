@@ -14,7 +14,7 @@ tracked; passwords and other authentication material are not.
 | Bybit login, API, WebSocket and assets | `Bybit` | Verified `KR HTTPS 01`; no cross-country fallback |
 | Binance web, API, WebSocket and assets | `Binance` | Verified `KR HTTPS 01`; no cross-country fallback |
 | Backpack and other crypto services | `CF Edge Auto` | Measured SG/US, selected by latency |
-| Futu selected trade hosts (`trade.futunn.com`, `fututrade.com` and its subdomains) | `CF Edge Auto` | Domain-only exception; does not establish complete trading coverage |
+| Futu / moomoo domains and macOS Futu OpenD | `Futu`: `CF Edge Auto` → `DIRECT` | Prefer CF; direct only when CF health checks fail |
 | Domestic services | literal `DIRECT` rules | DIRECT |
 | IBKR overseas sites and trading gateways | Surge: `US Only`; Shadowrocket: `CF Edge Auto` | Mac uses fixed us1 egress to avoid trading/data session IP mismatch |
 | IBKR mainland trading gateway (`*.ibllc.com.cn`) | `DIRECT` | DIRECT |
@@ -75,6 +75,42 @@ second, independent path to the same exit.
 
 `US TUIC 01` and `US HY2 Relay 01` remain available in `US Auto`, `Fastest` and
 `Proxy` for non-AI traffic, where a changing exit IP does not matter.
+
+## Futu routing
+
+`Futu = fallback, CF Edge Auto, DIRECT` keeps CF first even if DIRECT is faster.
+It refreshes stale availability results on use (60-second interval); Surge
+waits for the initial evaluation. Recovery makes CF preferred again. This is
+health-check failover, not a retry of an individual failed trade/API request:
+a Futu rejection or timeout with otherwise healthy CF may not switch routes.
+See Surge's [fallback semantics](https://manual.nssurge.com/policy-groups/fallback.html)
+and [nested-group testing](https://manual.nssurge.com/policy-groups/overview.html).
+
+Surge Mac matches the exact executable
+`/Applications/Futu_OpenD.app/Contents/MacOS/Futu_OpenD`, including public
+literal-IP connections on ports such as 443 and 9595. Enhanced Mode must be
+on to capture connections that do not use the system HTTP proxy. LAN rules
+remain earlier, so local OpenD clients keep connecting directly. Existing TCP
+sessions keep their route until the application reconnects.
+
+Both profiles contain inline Futu/moomoo domain rules before the domestic
+fast path, sourced from the [broker-rules Futu list](https://github.com/forecho/broker-rules/blob/main/Source/broker/futu.conf)
+(snapshot 2026-10-08, redundant subdomains removed). These cover `futunn.com`,
+`fututrade.com`, `futufin.com`, `futuhk.com`, `futustatic.com`, `moomoo.com`
+and the related first-party domains. Shared Tencent/CDN IP ranges are not
+assigned wholesale to Futu. iOS uses domain rules; arbitrary literal-IP app
+connections cannot be covered by the macOS process rule.
+
+The shared CF pool, fixed AI exit, exchange policies and `FINAL,DIRECT` stay
+unchanged. Public HTTP probes and proxy connection logs do not validate an
+authenticated order; no test order is submitted as part of routing validation.
+
+Validation on 2026-10-08: local routing checks passed for both profiles; Mac
+OpenD logs showed `Futu -> CF Edge Auto`. Futu homepage, OpenAPI and
+`fututrade.com` public probes returned HTTP 200 through CF (observed SG exit).
+An isolated unavailable-proxy Smart group inside an equivalent fallback group
+selected DIRECT and returned HTTP 200 with the direct exit; temporary test
+groups were removed afterward. Phone refresh and real orders remain untested.
 
 ## Installation downloads and Muse
 
