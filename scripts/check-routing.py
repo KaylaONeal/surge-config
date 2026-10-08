@@ -169,10 +169,29 @@ def check(profile):
         'notfutunn.com': 'DIRECT', 'futunn.com.example': 'DIRECT',
         'notfututrade.com': 'DIRECT', 'fututrade.com.example': 'DIRECT',
     }
-    futu_rules = [line for line in original if line.endswith(',Futu')]
+    futu_rules = [line for line in original if ',Futu' in line]
     assert len(futu_rules) >= 46
     fast_path = original.index('GEOIP,CN,DIRECT,no-resolve')
     assert all(original.index(line) < fast_path for line in futu_rules), 'Futu shadowed by domestic routing'
+    # Phone traffic has no macOS process identity. Cover literal IPs directly,
+    # including the edges of each declared subnet, without widening /32 hosts.
+    futu_networks = [line.split(',') for line in futu_rules if line.startswith('IP-CIDR,')]
+    assert len(futu_networks) >= 65, (profile.name, 'missing Futu access points')
+    for fields in futu_networks:
+        assert fields[3:] == ['no-resolve'], fields
+        network = ip_network(fields[1])
+        for address in (network.network_address, network.broadcast_address):
+            assert route(str(address)) == 'Futu', (profile.name, address, 'phone IP bypassed')
+    cases.update(dict.fromkeys(('futuapi.com', 'api.futuin.com', 'cdn.qtlcdn.com',
+                              'shortconn.im.qcloud.com', 'shortconnv6.im.qcloud.com',
+                              'loginv6.im.qcloud.com', '9oju31.launches.appsflyersdk.com',
+                              'sgqt0j.launches.appsflyersdk.com', 'cg.play-analytics.com',
+                              '106.55.66.56', '170.106.201.247', '43.153.191.169',
+                              '124.156.234.231', '43.163.63.148', '47.254.236.220'), 'Futu'))
+    cases.update(dict.fromkeys(('futuapi.com.example', 'notfutuin.com',
+                              'qtlcdn.com.example', 'unrelated.im.qcloud.com',
+                              'other.launches.appsflyersdk.com', '43.163.63.149',
+                              '47.254.236.221', '192.168.50.12'), 'DIRECT'))
     opend = '/Applications/Futu_OpenD.app/Contents/MacOS/Futu_OpenD'
     process_rule = f'PROCESS-NAME,{opend},Futu'
     if profile.name == 'surge.conf':

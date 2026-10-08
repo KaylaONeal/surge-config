@@ -97,9 +97,24 @@ Both profiles contain inline Futu/moomoo domain rules before the domestic
 fast path, sourced from the [broker-rules Futu list](https://github.com/forecho/broker-rules/blob/main/Source/broker/futu.conf)
 (snapshot 2026-10-08, redundant subdomains removed). These cover `futunn.com`,
 `fututrade.com`, `futufin.com`, `futuhk.com`, `futustatic.com`, `moomoo.com`
-and the related first-party domains. Shared Tencent/CDN IP ranges are not
-assigned wholesale to Futu. iOS uses domain rules; arbitrary literal-IP app
-connections cannot be covered by the macOS process rule.
+and the related first-party domains. After a phone still reported a mainland
+connection, the 2026-10-08 supplement adds nine domain rules (including
+`futuapi.com`, `futuin.com`, `qtlcdn.com` and specific shared SDK hosts), plus
+63 Futu-labelled IP rules from [HK_Broker.list](https://github.com/LingJingMaster/Shadowrocket-Rules/blob/main/HK_Broker.list).
+Shared SDK names are taken from [broker-rules _shared.conf](https://github.com/forecho/broker-rules/blob/main/Source/broker/_shared.conf).
+Two additional exact hosts, `43.163.63.148/32` and `47.254.236.220/32`, were
+observed receiving OpenD traffic locally. No whole cloud ASN or shared vendor
+root domain is added. Listed cloud subnets can still contain other tenants;
+the rules apply to any app connecting to those IPs.
+
+The IP rules use `no-resolve` and precede `GEOIP,CN,DIRECT,no-resolve`, covering
+phone connections with no domain or process identity. The [upstream traffic
+audit](https://github.com/masnmarc/broker-rules/pull/1) describes Futu choosing
+uncovered access-point IPs after latency probes. Endpoints rotate, so this is
+a dated coverage improvement, not a guarantee that all future IPs are covered.
+All additions use the existing `Futu` group: CF first, DIRECT on failed health
+checks. This preserves the requested fallback, which can still produce a
+mainland exit; changing that behavior is a separate policy choice.
 
 The shared CF pool, fixed AI exit, exchange policies and `FINAL,DIRECT` stay
 unchanged. Public HTTP probes and proxy connection logs do not validate an
@@ -110,7 +125,10 @@ OpenD logs showed `Futu -> CF Edge Auto`. Futu homepage, OpenAPI and
 `fututrade.com` public probes returned HTTP 200 through CF (observed SG exit).
 An isolated unavailable-proxy Smart group inside an equivalent fallback group
 selected DIRECT and returned HTTP 200 with the direct exit; temporary test
-groups were removed afterward. Phone refresh and real orders remain untested.
+groups were removed afterward. The mobile supplement passed 141 Surge / 138
+Shadowrocket route cases plus IP subnet-boundary checks. A literal-IP CONNECT
+probe without OpenD process identity matched `124.156.234.0/24` and used
+`Futu -> CF Edge Auto`. Phone trading after this supplement remains unverified.
 
 ## Installation downloads and Muse
 
