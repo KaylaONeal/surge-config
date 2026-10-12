@@ -1,7 +1,7 @@
 # EdgeTunnel deployment
 
 The deployed Worker is based on `cmliu/edgetunnel` commit
-`fb3212257e3527447d7368010b378f7e449444b4` and is served at
+`fb3212257e3527447d7368010b378f7e449444b4` with the reviewed [low-CPU relay patch](../../scripts/optimize-edgetunnel.py), and is served at
 `edge-bcd7d61c.pages.dev` in the isolated account registered as
 `infra cloudflare-edgetunnel` (migration: 2026-10-01).
 
@@ -12,7 +12,8 @@ Cloudflare resources:
 - KV namespace: `surge-edgetunnel-kv`
 - KV binding: `KV`
 - production ingress: `edge-bcd7d61c.pages.dev`
-- deployed `_worker.js` SHA-256: `c104ee5b19f2bfefdf27c2af5f9d3ff222d46dd8104b2fa8e87ac829d7b0f945`
+- archived upstream module SHA-256: `c104ee5b19f2bfefdf27c2af5f9d3ff222d46dd8104b2fa8e87ac829d7b0f945`
+- optimized module SHA-256: `5dbf087fea73cb0cc9eef8543c8c0ef88dc6a79660dd95298e86abca5494257f`
 - production and preview `fail_open`: `false`
 
 Runtime configuration disables KV access logging and enables two concurrent TCP
@@ -53,7 +54,7 @@ The upstream Worker is intentionally pinned. Review upstream changes before
 deploying a newer commit because the Worker can initiate arbitrary outbound TCP
 connections.
 
-## Native Surge selection (2026-10-01)
+## Previous native Smart selection (2026-10-01; replaced 2026-10-12)
 
 `CF Edge Auto` in `surge.conf` uses Surge's native `smart` group on Mac and iOS.
 Its members remain the same seven Trojan-over-WebSocket CF ingress nodes. Real
@@ -84,3 +85,28 @@ keep their original path.
 
 References: [Surge Smart group](https://manual.nssurge.com/policy-groups/smart.html),
 [Surge Trojan transport](https://manual.nssurge.com/policies/trojan.html).
+
+## CPU mitigation and low-frequency probes (2026-10-12)
+
+A Pages tail correlated `exceededCpu` with an OpenD quote disconnection within
+milliseconds. Keep the same CF account, host, authentication, KV bindings and
+routing; do not substitute old market data or switch to the original account.
+
+`python3 scripts/deploy-edgetunnel-pages.py --optimize` audits the candidate.
+Add `--apply` to deploy the reviewed patch to the existing Pages project without
+rewriting its live settings. The patch refuses a different archived source hash.
+The original October 1 deployment is retained for rollback.
+
+The replacement TCP downlink relays received bytes in order without Grain
+batching, per-packet timers or BYOB copies. It preserves optional response
+headers, async adapters, no-data-only retries, and generation-aware cleanup.
+Explicit UUID WebSocket connections skip an unused derived-ID MD5 calculation;
+UUID authentication and the other login/configuration paths remain unchanged.
+Run `node --test tests/edgetunnel-stream-relay.test.mjs` for stream invariants.
+
+Surge CF Edge Auto now uses native `url-test` with a two-hour result lifetime,
+as Shadowrocket already did. Futu fallback also reuses tests for two hours;
+first-use evaluation no longer blocks Surge. Connection failures may trigger
+an earlier retest. Each Surge CF leaf tests an external gstatic URL explicitly,
+not the Worker-local synthetic Cloudflare 204 responder. This reduces scheduled
+probes but is not a fix for every possible CPU/resource failure.

@@ -36,6 +36,7 @@ def form(parts):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--optimize", action="store_true", help="Apply the reviewed low-CPU relay patch; preserve existing project settings")
     args = parser.parse_args()
     spec = importlib.util.spec_from_file_location("migration", Path(__file__).with_name("migrate-edgetunnel-account.py"))
     migration = importlib.util.module_from_spec(spec)
@@ -54,6 +55,12 @@ def main():
     module = parts[0].get_payload(decode=True)
     if hashlib.sha256(module).hexdigest() != EXPECTED_SHA:
         raise RuntimeError("Deployed module checksum changed; review required")
+    if args.optimize:
+        patch_spec = importlib.util.spec_from_file_location("optimizer", Path(__file__).with_name("optimize-edgetunnel.py"))
+        optimizer = importlib.util.module_from_spec(patch_spec)
+        patch_spec.loader.exec_module(optimizer)
+        module = optimizer.optimize(module)
+    module_sha = hashlib.sha256(module).hexdigest()
     recovery = dict(re.findall(r"^([A-Z_]+)=(.*)$", (Path.home() / ".config/surge-config/edgetunnel.env").read_text(), re.M))
     secrets = {"ADMIN": "EDGETUNNEL_ADMIN", "KEY": "EDGETUNNEL_KEY", "UUID": "EDGETUNNEL_UUID"}
     env_vars = {}
@@ -75,15 +82,21 @@ def main():
                   "fail_open": False}
     projects = api("pages/projects")
     existing = next((project for project in projects if project["name"] == PROJECT), None)
+    if args.optimize and not existing:
+        raise RuntimeError("Optimization requires the existing isolated Pages project")
     if existing:
         actual = existing.get("deployment_configs", {}).get("production", {}).get("kv_namespaces", {}).get("KV", {})
         if actual.get("namespace_id") != kv_namespaces["KV"]["namespace_id"]:
             raise RuntimeError("Existing project is not the isolated EdgeTunnel deployment")
-    print(json.dumps({"account": ACCOUNT, "project": PROJECT, "module_sha256": EXPECTED_SHA,
+    print(json.dumps({"account": ACCOUNT, "project": PROJECT, "module_sha256": module_sha,
                       "kv_binding_names": list(kv_namespaces), "env_binding_names": list(env_vars), "apply": args.apply}))
     if not args.apply:
         return
-    if existing:
+    if existing and args.optimize:
+        # Code-only deployment: do not reset live secrets, bindings, runtime
+        # flags, or preview configuration from the archived Worker's settings.
+        project = existing
+    elif existing:
         project = api(f"pages/projects/{PROJECT}", "PATCH", {"deployment_configs": {"production": production, "preview": {"fail_open": False}}})
     else:
         project = api("pages/projects", "POST", {"name": PROJECT, "production_branch": "main",
@@ -94,7 +107,7 @@ def main():
     body, content_type = form([
         ("manifest", None, "application/json", b"{}"),
         ("branch", None, "text/plain", b"main"),
-        ("commit_message", None, "text/plain", b"Isolated EdgeTunnel Pages ingress"),
+        ("commit_message", None, "text/plain", b"Low-CPU streaming relay" if args.optimize else b"Isolated EdgeTunnel Pages ingress"),
         ("_worker.js", "_worker.js", "application/javascript+module", module),
         ("_routes.json", "_routes.json", "application/json", b'{"version":1,"include":["/*"],"exclude":[]}'),
     ])

@@ -57,15 +57,17 @@ def check(profile):
     cf_leaves = {line.split('=', 1)[0].strip() for line in sections['[Proxy]']
                  if line.startswith('CF Edge ')}
     assert len(cf_leaves) == 7, (profile.name, 'must retain all seven CF ingress nodes')
-    assert groups['CF Edge Auto'][0] == ('smart' if profile.name == 'surge.conf' else 'url-test')
+    assert groups['CF Edge Auto'][0] == 'url-test'
+    assert 'interval = 7200' in groups['CF Edge Auto']
     assert exits('CF Edge Auto') == cf_leaves, (profile.name, 'CF Auto must retry only within CF')
     assert groups['Futu'][:3] == ['fallback', 'CF Edge Auto', 'DIRECT']
     assert exits('Futu') == cf_leaves | {'DIRECT'}
-    assert 'interval = 60' in groups['Futu']
+    assert 'interval = 7200' in groups['Futu']
     if profile.name == 'surge.conf':
         assert 'evaluate-before-use = false' in groups['CF Edge Auto']
-        assert not any(p.startswith(('interval', 'tolerance')) for p in groups['CF Edge Auto'][1:]), \
-            'Smart uses its own test schedule, not url-test interval/tolerance'
+        for line in sections['[Proxy]']:
+            if line.startswith('CF Edge '):
+                assert 'test-url=http://www.gstatic.com/generate_204' in line, 'CF must test external forwarding'
     for region in ('SG', 'US'):
         members = [p for p in groups[f'CF {region} Auto'][1:] if '=' not in p]
         assert all(p.endswith(' ' + region) for p in members), members
@@ -197,7 +199,7 @@ def check(profile):
     if profile.name == 'surge.conf':
         assert original.count(process_rule) == 1
         assert f'#!MACOS-ONLY\n{process_rule}' in profile.read_text()
-        assert 'evaluate-before-use = true' in groups['Futu']
+        assert 'evaluate-before-use = false' in groups['Futu']
         for host in ('170.106.47.242', '106.55.66.56', '47.250.12.193', 'unknown.example'):
             assert route(host, opend) == 'Futu', (host, 'OpenD public destination bypassed')
         assert route('192.168.50.12', opend) == 'DIRECT', 'LAN must remain direct'

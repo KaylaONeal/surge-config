@@ -15,3 +15,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify every RULE-SET URL is reachable
         run: ./scripts/check-rules.sh
+      - name: Verify EdgeTunnel stream byte integrity and lifecycle
+        run: node --test tests/edgetunnel-stream-relay.test.mjs

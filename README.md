@@ -79,8 +79,8 @@ second, independent path to the same exit.
 ## Futu routing
 
 `Futu = fallback, CF Edge Auto, DIRECT` keeps CF first even if DIRECT is faster.
-It refreshes stale availability results on use (60-second interval); Surge
-waits for the initial evaluation. Recovery makes CF preferred again. This is
+It refreshes stale availability results on use (two-hour interval); Surge
+uses cached results while testing in the background. Recovery makes CF preferred again. This is
 health-check failover, not a retry of an individual failed trade/API request:
 a Futu rejection or timeout with otherwise healthy CF may not switch routes.
 See Surge's [fallback semantics](https://manual.nssurge.com/policy-groups/fallback.html)
@@ -216,7 +216,15 @@ places at once.
 
 ## Probe frequency and cached configuration
 
-Both profiles use a 7200-second (2-hour) interval for `url-test` groups.
+Both profiles use a 7200-second (2-hour) interval for `url-test` groups and
+the Futu fallback group. On 2026-10-12, Surge CF Edge Auto changed from Smart
+to native url-test: Smart ignores interval and always tests every five minutes.
+For seven leaves, baseline scheduled CF tests fall from 2,016 to 84 per day per
+client (24 times fewer), excluding failures, network changes and manual tests.
+The fixed-US AI Smart group is unchanged. CF leaves explicitly use
+`test-url=http://www.gstatic.com/generate_204`: the pinned Worker synthesizes
+204 responses for `cp.cloudflare.com`, so that address cannot validate external
+forwarding. Shadowrocket uses its existing group-level gstatic test URL.
 Surge keeps the previous selection while refreshing expired results in the
 background, and `evaluate-before-use=false` avoids blocking first use on a
 successful probe (first use without a result uses the first member). Network
@@ -231,7 +239,11 @@ node tests preserve the last successful selection indefinitely.
 The [September 30 quota investigation](docs/reviews/2026-09-30-cloudflare-quota.md)
 found EdgeTunnel traffic, rather than profile downloads, dominated Workers
 requests. Less frequent testing reduces probe overhead but does not cap actual
-proxy connections or prevent account quota exhaustion.
+proxy connections or prevent account quota exhaustion. In particular, profile
+and test caches cannot restore a TCP stream terminated by a per-request CPU
+limit. Live quotes and order responses are never replaced with cached data.
+The [October 12 investigation and mitigation](docs/reviews/2026-10-12-futu-quote-disconnections.md)
+separates probe overhead from Worker CPU failures.
 
 ## Upstream rule synchronization
 
