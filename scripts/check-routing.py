@@ -114,7 +114,7 @@ def check(profile):
                        'preprod-daily-cloudcode-pa.sandbox.googleapis.com',
                        'antigravity.google', 'antigravity.goog', 'antigravity-unleash.goog')
     download_hosts = ('persistent.oaistatic.com', 'releases.openai.com',
-                      'downloads.claude.ai', 'registry.npmjs.org',
+                      'downloads.claude.ai', 'herdr.dev', 'registry.npmjs.org',
                       'release-assets.githubusercontent.com', 'objects.githubusercontent.com',
                       'github-releases.githubusercontent.com')
     cases = {
@@ -136,6 +136,7 @@ def check(profile):
         'storage.googleapis.com': 'CF Edge Auto',
         'releases.openai.com.example': 'DIRECT',
         'sub.registry.npmjs.org': 'DIRECT',
+        'notherdr.dev': 'DIRECT', 'herdr.dev.example': 'DIRECT',
         'www.youtube.com': 'YouTube', 'youtu.be': 'YouTube',
         'www.youtube-nocookie.com': 'YouTube', 'i.ytimg.com': 'YouTube',
         'rr1.googlevideo.com': 'YouTube', 'yt3.ggpht.com': 'YouTube',
