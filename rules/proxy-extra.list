@@ -1,6 +1,6 @@
 #!name=Proxy-Extra
 #!desc=Personal domains forced through CF Edge Auto
-#!updated=2026-09-11
+#!updated=2026-10-19
 
 # Prefer DOMAIN-SUFFIX for a service-owned domain and DOMAIN for a shared host.
 # Do not add broad shared CDNs such as amazonaws.com or cloudfront.net.
@@ -38,3 +38,7 @@ DOMAIN-SUFFIX,coingecko.com
 DOMAIN-SUFFIX,coinmarketcap.com
 DOMAIN-SUFFIX,defillama.com
 DOMAIN-SUFFIX,dexscreener.com
+
+# Ondo Finance docs (Vercel): China direct cuts the TLS handshake (2026-10-19, us1/kr return 200).
+# arbitrage reads its rule pages as a research feed.
+DOMAIN-SUFFIX,ondo.finance
