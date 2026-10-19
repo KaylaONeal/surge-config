@@ -2,6 +2,8 @@
 """Check first-match routing with local rules, without remote-provider availability."""
 from pathlib import Path
 from ipaddress import ip_address, ip_network
+import re
+from urllib.parse import parse_qs, urlsplit
 
 ROOT = Path(__file__).resolve().parent.parent
 PREFIX = 'https://raw.githubusercontent.com/KaylaONeal/surge-config/main/'
@@ -41,6 +43,13 @@ def check(profile):
                 visit(member, parents + [name])
     for name in groups:
         visit(name, [])
+    # The deployed Mac is 5.7.6. HTTPS health checks require Mac 6.10+, even
+    # though HTTPS requests in standalone verification scripts are supported.
+    if profile.name == 'surge.conf':
+        for section in ('[General]', '[Proxy]', '[Proxy Group]'):
+            for line in sections[section]:
+                for url in re.findall(r'(?:^|,\s*)(?:test-url|internet-test-url|proxy-test-url|url)\s*=\s*([^,\s]+)', line):
+                    assert url.startswith('http://'), (profile.name, 'Mac 5.7.6 needs HTTP health-test URLs')
     pinned = {'US HY2 02', 'US HY2 01', 'US HTTPS 01'}
 
     def exits(name):
@@ -62,6 +71,15 @@ def check(profile):
     assert exits('CF Edge Auto') == cf_leaves, (profile.name, 'CF Auto must retry only within CF')
     assert groups['Futu'][:3] == ['fallback', 'CF Edge Auto', 'DIRECT']
     assert exits('Futu') == cf_leaves | {'DIRECT'}
+    hk_leaves = {'CF HKG 01', 'CF HKG 02'}
+    assert groups['CF HKG Auto'][:3] == ['fallback', 'CF HKG 01', 'CF HKG 02']
+    assert exits('CF HKG Auto') == hk_leaves, 'HK must never fall back to a different region or DIRECT'
+    for line in sections['[Proxy]']:
+        if line.split('=', 1)[0].strip() in hk_leaves:
+            path = re.search(r'(?:^|,\s*)ws-path=([^,\s]+)', line).group(1)
+            pool = parse_qs(urlsplit(path).query).get('proxyip', [''])[0].split(',')
+            assert len(pool) == 3 and set(pool) == {'47.239.4.246', '8.212.60.215', '219.76.13.166'}, 'HK proxyIP allowlist changed; remeasure exits'
+            assert 'udp-relay=false' in line
     assert 'interval = 7200' in groups['Futu']
     if profile.name == 'surge.conf':
         assert 'evaluate-before-use = false' in groups['CF Edge Auto']
@@ -144,6 +162,11 @@ def check(profile):
         'youtubeembeddedplayer.googleapis.com': 'YouTube',
         'video.google.com': 'YouTube', 'youtube-ui.l.google.com': 'YouTube',
         'api.backpack.exchange': 'CF Edge Auto', 'ws.backpack.exchange': 'CF Edge Auto',
+        **dict.fromkeys(('polymarket.com', 'gamma-api.polymarket.com',
+                        'clob.polymarket.com', 'data-api.polymarket.com',
+                        'relayer-v2.polymarket.com', 'ws-subscriptions-clob.polymarket.com',
+                        'api.perpetuals.polymarket.com', 'ws.perpetuals.polymarket.com'), 'CF HKG Auto'),
+        'notpolymarket.com': 'DIRECT', 'polymarket.com.example': 'DIRECT',
         'backpack.app': 'CF Edge Auto', 'api.binance.com': 'Binance',
         'www.okx.com': 'CF Edge Auto', 'app.hyperliquid.xyz': 'CF Edge Auto',
         'api.jup.ag': 'CF Edge Auto', 'www.coingecko.com': 'CF Edge Auto',

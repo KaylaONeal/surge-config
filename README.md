@@ -14,6 +14,7 @@ tracked; passwords and other authentication material are not.
 | Bybit login, API, WebSocket and assets | `Bybit` | Verified `KR HTTPS 01`; no cross-country fallback |
 | Binance web, API, WebSocket and assets | `Binance` | Verified `KR HTTPS 01`; no cross-country fallback |
 | Backpack and other crypto services | `CF Edge Auto` | Measured SG/US, selected by latency |
+| Polymarket web / CLOB / Gamma / Perps | `CF HKG Auto` | Explicit measured-HK proxyIP pool; no default SG pool |
 | Futu / moomoo domains and macOS Futu OpenD | `Futu`: `CF Edge Auto` → `DIRECT` | Prefer CF; direct only when CF health checks fail |
 | Domestic services | literal `DIRECT` rules | DIRECT |
 | IBKR overseas sites and trading gateways | Surge: `US Only`; Shadowrocket: `CF Edge Auto` | Mac uses fixed us1 egress to avoid trading/data session IP mismatch |
@@ -327,6 +328,33 @@ private GitHub raw URL.
 `SURGE_MANAGED_URL` must be the protected URL that returns the rendered
 `surge.conf`. The renderer writes it into `#!MANAGED-CONFIG`, so the initial
 one-click import and every later automatic update use the same endpoint.
+
+## Applying changes to this Mac
+
+The installed Mac 5.7.6 CLI supports `reload`, which rereads the current local
+profile. It does not download a managed subscription. Mac 6.8.0+ adds
+`surge-cli managed-profile update`; `external-resource update all` only refreshes
+referenced resources and is not a main-profile update.
+
+For this Mac's existing `Profiles/surge.conf`, render and review before applying:
+
+```bash
+LC_ALL=C LANG=C LC_CTYPE=C bash scripts/render-config.sh
+python3 scripts/apply-local-surge.py
+python3 scripts/apply-local-surge.py --apply --expected-current-sha256 <active_sha256_from_review>
+```
+
+The helper backs up the active profile under ignored `build/local-backups/`,
+rejects an intervening manual edit, atomically replaces the file, and calls the
+installed `surge-cli reload`. A failed reload restores the backup. This applies a
+local render; it does not publish a new hosted subscription.
+
+Mac 5.7.6 requires plain HTTP health-test URLs. Keep the standard gstatic probe;
+HTTPS health tests require Mac 6.10.0+ / iOS 5.23.0+. HTTPS API/geolocation checks
+run independently via `scripts/probe-polymarket-hk.js`. Routing validation and the
+apply helper reject HTTPS health-test URLs before replacing the local profile.
+
+See [the HK pool measurement and implementation](docs/reviews/2026-10-19-cf-hkg-selection.md).
 
 ## Platform-specific behavior
 
