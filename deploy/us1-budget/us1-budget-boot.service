@@ -1,0 +1,17 @@
+[Unit]
+Description=Fence us1 proxy ports before network/proxy startup
+DefaultDependencies=no
+After=local-fs.target
+Before=network-pre.target docker.service hysteria-server.service
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/python3 /opt/us1-budget/us1-budget-guard.py boot --apply
+TimeoutStartSec=45
+UMask=0077
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

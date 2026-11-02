@@ -1,0 +1,11 @@
+[Unit]
+Description=Check us1 proxy circuit-breaker accounting and enforcement
+After=us1-budget-boot.service docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/us1-budget/us1-budget-guard.py tick --apply
+TimeoutStartSec=90
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes

@@ -50,11 +50,19 @@ Hysteria service runs as UID 998, allowing a process-specific route exception:
 ## Publication and quota boundary
 
 The local Mac profile is applied and backed up under ignored `build/local-backups`.
-The user subsequently authorized publishing both subscriptions. The managed
-header will be restored after the hosted rendered bytes match the local output.
+The user subsequently authorized publishing both subscriptions. Commit
+`8ac8e0b7dd5b752e07dbf2e15975618281866f70` is published on `main`, with
+[CI 41408250699](https://github.com/KaylaONeal/surge-config/actions/runs/41408250699)
+successful. Both protected hosted profiles returned HTTP 200 and matched the
+local rendered bytes; the Mac managed-refresh header is restored.
 The Mac global-proxy default is now `UX HY2 Direct`, verified through the native
-UI and CLI environment; normal operation remains in rule mode. Phone acceptance
-is separate from local and hosted-profile verification.
+UI and CLI environment; normal operation remains in rule mode. The old app's
+HTTP API did not persist the global-policy change, while the native UI did.
+Phone acceptance is separate from local and hosted-profile verification.
+
+Cloudflare rejected the default Python urllib user agent with error 1010.
+Verification using a profile-client user agent succeeded; no WAF setting or
+protected URL was changed or disclosed.
 
 Routing isolation is not a provider billing cap. It does not establish the
 current month's remaining allowance or stop other clients/services on us1.

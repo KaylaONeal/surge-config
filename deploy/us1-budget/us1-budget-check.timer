@@ -1,0 +1,11 @@
+[Unit]
+Description=Observe us1 proxy circuit breaker every ten seconds
+
+[Timer]
+OnBootSec=15s
+OnUnitInactiveSec=10s
+AccuracySec=1s
+Unit=us1-budget-check.service
+
+[Install]
+WantedBy=timers.target

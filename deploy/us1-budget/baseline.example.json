@@ -1,0 +1,10 @@
+{
+  "verified": false,
+  "evidence": "REPLACE with reviewed monthly outbound coverage evidence; not an API token",
+  "month": "REPLACE YYYY-MM in America/Los_Angeles",
+  "as_of": "REPLACE timestamp with explicit timezone",
+  "boot_id": "REPLACE with contemporaneous us1 snapshot",
+  "interface": "ens4",
+  "tx_bytes_at_as_of": null,
+  "month_tx_bytes": null
+}

@@ -17,3 +17,5 @@ jobs:
         run: ./scripts/check-rules.sh
       - name: Verify EdgeTunnel stream byte integrity and lifecycle
         run: node --test tests/edgetunnel-stream-relay.test.mjs
+      - name: Verify staged us1 budget guard recovery and accounting
+        run: python3 tests/test-us1-budget-guard.py
