@@ -1,10 +1,11 @@
 # NAME: Google-AI
-# DESC: Google/DeepMind AI product domains routed with the US-only AI policy
-# UPDATED: 2026-09-17
+# DESC: Google/DeepMind AI product domains routed through AI -> UX Only
+# UPDATED: 2026-11-01
 # TYPE: Surge RULE-SET (Shadowrocket compatible)
 # NOTE: Gemini and AI Studio are geo-gated and refuse unsupported regions, so
-# these ride the AI group (one pinned US egress IP) rather than CF Edge Auto,
-# whose Cloudflare Worker exits change country as the url-test picks a new PoP.
+# these ride AI -> UX Only (192.3.243.194), never the Claude-only us1 pool.
+# CF Edge Auto is not a fixed-country alternative:
+# its Cloudflare Worker exits can change country as a new path is selected.
 # The profiles must match this set before their inline `google.com` rule.
 
 DOMAIN-SUFFIX,gemini.google.com

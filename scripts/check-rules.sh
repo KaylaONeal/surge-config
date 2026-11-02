@@ -37,10 +37,17 @@ done
 for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
   for domain in \
     openai.com chatgpt.com oaistatic.com oaiusercontent.com sora.com \
-    anthropic.com claude.ai claude.com claudeusercontent.com claude.site \
-    claudemcpclient.com claudemcpcontent.com muse.ai; do
+    muse.ai; do
     if ! grep -Eq "^DOMAIN-SUFFIX,${domain//./\\.},AI$" "$profile"; then
       echo "FAIL $profile missing inline AI rule for $domain" >&2
+      failed=1
+    fi
+  done
+
+  for domain in anthropic.com claude.ai claude.com claudeusercontent.com claude.site \
+    claudemcpclient.com claudemcpcontent.com; do
+    if ! grep -Fqx "DOMAIN-SUFFIX,$domain,Claude" "$profile"; then
+      echo "FAIL $profile missing inline Claude allowlist rule for $domain" >&2
       failed=1
     fi
   done
@@ -66,26 +73,27 @@ for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
     failed=1
   fi
 
-  if grep -E '^AI = ' "$profile" | grep -Eq '(DIRECT|CF Edge Auto|JP Auto|KR Auto)'; then
-    echo "FAIL $profile AI policy contains a non-US/direct option" >&2
+  if ! grep -Fqx 'AI = select, UX Only' "$profile"; then
+    echo "FAIL $profile non-Claude AI must use only the fixed UX exit" >&2
     failed=1
   fi
 
-  # AI traffic must always leave from us1, 35.212.192.172, so an AI service
-  # never sees the exit IP move. Only three transports land there:
+  # Claude alone may consume us1 quota. Only three transports land there:
   #   US HTTPS 01  -> us1:443/tcp   (gost)
   #   US HY2 02    -> us1:4444/udp  (hysteria, direct)
   #   US HY2 01    -> 139.196.52.175:36000/udp, DNAT'd to us1:4444
-  # US TUIC 01 and US HY2 Relay 01 both land on 192.3.243.194 instead, and
-  # US Auto / Fastest mix the two exits, so none of them may appear here.
-  for group in 'US Only' 'AI'; do
+  # UX HY2 Direct lands on 192.3.243.194 instead, and US Auto / Fastest are
+  # general-purpose pools and may not appear here.
+  # check-routing.py also rejects indirect us1 references from every other
+  # group and any rule outside the exact Claude domain allowlist.
+  for group in 'US Only' 'Claude'; do
     line=$(grep -E "^${group} = " "$profile")
     if [[ -z "$line" ]]; then
       echo "FAIL $profile missing the ${group} policy group" >&2
       failed=1
       continue
     fi
-    if grep -Eq '(US TUIC 01|US HY2 Relay 01|US Auto|Fastest)' <<<"$line"; then
+    if grep -Eq '(UX HY2 Direct|UX Only|US Auto|Fastest)' <<<"$line"; then
       echo "FAIL $profile ${group} contains a member that does not exit from us1" >&2
       failed=1
     fi
@@ -126,14 +134,14 @@ for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
   first_broad_direct_line=$(grep -nE 'ChinaMax/ChinaMax_Domain\.list,DIRECT|Loyalsoldier/surge-rules/release/ruleset/direct\.txt,DIRECT' "$profile" | head -1 | cut -d: -f1)
   first_broad_proxy_line=$(grep -nE 'Global/Global_Domain\.list,CF Edge Auto|Loyalsoldier/surge-rules/release/ruleset/proxy\.txt,CF Edge Auto' "$profile" | head -1 | cut -d: -f1)
   core_ai_line=$(grep -nF 'DOMAIN-SUFFIX,openai.com,AI' "$profile" | head -1 | cut -d: -f1)
-  core_cf_line=$(grep -nF 'DOMAIN-SUFFIX,google.com,CF Edge Auto' "$profile" | head -1 | cut -d: -f1)
+  core_google_line=$(grep -nF 'DOMAIN-SUFFIX,google.com,UX Only' "$profile" | head -1 | cut -d: -f1)
   if [[ -z "$proxy_extra_line" || -z "$first_broad_direct_line" || -z "$first_broad_proxy_line" ||
-        -z "$core_ai_line" || -z "$core_cf_line" ||
+        -z "$core_ai_line" || -z "$core_google_line" ||
         "$core_ai_line" -ge "$first_broad_direct_line" ||
-        "$core_cf_line" -ge "$first_broad_direct_line" ||
+        "$core_google_line" -ge "$first_broad_direct_line" ||
         "$proxy_extra_line" -ge "$first_broad_direct_line" ||
         "$first_broad_direct_line" -ge "$first_broad_proxy_line" ]]; then
-    echo "FAIL $profile policy priority must be core AI/CF, proxy-extra, domestic, overseas" >&2
+    echo "FAIL $profile policy priority must be core AI/Google, proxy-extra, domestic, overseas" >&2
     failed=1
   fi
 done
@@ -153,7 +161,7 @@ fi
 # Common overseas services must use CF Edge directly. A select group can retain
 # an old JP/US choice across profile reloads, defeating the desired routing.
 for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
-  for service in Telegram Twitter Google Global; do
+  for service in Telegram Twitter Global; do
     expected="RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/$service/$service.list,CF Edge Auto"
     if ! grep -Fqx "$expected" "$profile"; then
       echo "FAIL $profile must route $service through CF Edge Auto" >&2
@@ -161,9 +169,21 @@ for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
     fi
   done
 
-  for domain in google.com googleapis.com gstatic.com telegram.org t.me x.com twitter.com twimg.com; do
+  for domain in telegram.org t.me x.com twitter.com twimg.com; do
     if ! grep -Fqx "DOMAIN-SUFFIX,$domain,CF Edge Auto" "$profile"; then
       echo "FAIL $profile missing inline CF Edge rule for $domain" >&2
+      failed=1
+    fi
+  done
+
+  google_rule='RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Google/Google.list,UX Only'
+  if ! grep -Fqx "$google_rule" "$profile"; then
+    echo "FAIL $profile Google must use the fixed UX exit" >&2
+    failed=1
+  fi
+  for domain in google.com googleapis.com gstatic.com googleusercontent.com; do
+    if ! grep -Fqx "DOMAIN-SUFFIX,$domain,UX Only" "$profile"; then
+      echo "FAIL $profile missing inline UX rule for $domain" >&2
       failed=1
     fi
   done
@@ -296,10 +316,9 @@ done
 
 # IBKR public domains in upstream Global.list would use Proxy/JP, while TWS
 # overseas gateways (*.ibllc.com) are absent upstream and fall through to
-# DIRECT. Pin Mac IBKR to one US egress; preserve the mobile policy and mainland direct rule.
+# DIRECT. Both clients now pin IBKR to UX; preserve the mainland direct rule.
 for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do
-  ibkr_policy='CF Edge Auto'
-  [[ "$profile" == "$repo_dir/surge.conf" ]] && ibkr_policy='US Only'
+  ibkr_policy='UX Only'
   ibkr_rule="RULE-SET,https://raw.githubusercontent.com/KaylaONeal/surge-config/main/rules/ibkr.list,$ibkr_policy"
   ibkr_line=$(grep -nF "$ibkr_rule" "$profile" | head -1 | cut -d: -f1)
   global_line=$(grep -n 'ios_rule_script/master/rule/Surge/Global/Global.list,CF Edge Auto' "$profile" | head -1 | cut -d: -f1)
@@ -330,7 +349,7 @@ if grep -Fqx 'DOMAIN-SUFFIX,ibllc.com.cn' "$repo_dir/rules/ibkr.list"; then
   failed=1
 fi
 
-# Gemini/AI Studio are geo-gated: they must leave from the pinned US AI egress,
+# Gemini/AI Studio are geo-gated: they must leave from the pinned UX AI egress,
 # and their rules must precede the inline `google.com` rule -- Surge stops at the
 # first match, so a Google-AI set placed after it never fires.
 for profile in "$repo_dir/surge.conf" "$repo_dir/shadowrocket.conf"; do

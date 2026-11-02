@@ -5,56 +5,52 @@ tracked; passwords and other authentication material are not.
 
 ## Routing policy
 
+The templates reserve us1 for Claude online services. All other fixed-US
+traffic uses `UX Only`, whose members must exit at `192.3.243.194`.
+`ux.fallback.page`, `hy.fallback.page` and `ux1.fallback.page` name entrances
+to that same server; a hostname alone does not prove a working protocol or
+actual exit. Verify each selected transport before applying it.
+
+The selected transport is `UX HY2 Direct`: `192.3.243.194:5000/udp` with
+SNI `hy.fallback.page`. On 2026-11-02 UTC, mini's policy-specific probes
+observed `192.3.243.194` / US; Google returned 204 and the ChatGPT robots and
+IBKR public pages returned 200. These checks do not verify logged-in sessions.
+The server's failed default WARP route remains in place for other consumers;
+only the Hysteria service's UID uses the native route, covering both data and
+DNS. Other UX protocols were not validated. Repair details and the backup
+path are registered in `infra show ux-node`.
+
 | Traffic | Policy | Default exit |
 |---|---|---|
-| AI / LLM services (including Google AI) | `AI` | always `35.212.192.172` (us1) |
-| Codex / Claude installers, npm and GitHub release assets | `Download` | `US HY2 02` first; all options retain the us1 exit |
-| Google, Telegram, X and common overseas services | `CF Edge Auto` | Best mainland CF ingress |
-| YouTube (web, API, video and thumbnails) | `YouTube` | `US Auto` first (hysteria2, native UDP); CF/KR selectable |
-| Bybit login, API, WebSocket and assets | `Bybit` | Verified `KR HTTPS 01`; no cross-country fallback |
-| Binance web, API, WebSocket and assets | `Binance` | Verified `KR HTTPS 01`; no cross-country fallback |
-| Backpack and other crypto services | `CF Edge Auto` | Measured SG/US, selected by latency |
-| Polymarket web / CLOB / Gamma / Perps | `CF HKG Auto` | Explicit measured-HK proxyIP pool; no default SG pool |
-| Futu / moomoo domains and macOS Futu OpenD | `Futu`: `CF Edge Auto` → `DIRECT` | Prefer CF; direct only when CF health checks fail |
-| Domestic services | literal `DIRECT` rules | DIRECT |
-| IBKR overseas sites and trading gateways | Surge: `US Only`; Shadowrocket: `CF Edge Auto` | Mac uses fixed us1 egress to avoid trading/data session IP mismatch |
+| Claude online services and API | `Claude` → `US Only` | `35.212.192.172` (us1) |
+| ChatGPT / OpenAI, Google AI and other AI services | `AI` → `UX Only` | `192.3.243.194` |
+| Google services | `UX Only` | `192.3.243.194` |
+| Codex / Claude installers, npm and GitHub release assets | `Download` | `UX Only` first; `CF Edge Auto` selectable |
+| YouTube web, API, video and thumbnails | `YouTube` | `UX Only` first; CF/KR selectable |
+| Named self-hosted services; Mac Cloudflare Tunnel connectors | `UX Only` | Native UX transport; no CF relay dependency |
+| Bybit login, API, WebSocket and assets | `Bybit` | `KR HTTPS 01`; no cross-country fallback |
+| Binance web, API, WebSocket and assets | `Binance` | `KR HTTPS 01`; no cross-country fallback |
+| Telegram, X, Backpack and other common overseas services | `CF Edge Auto` | Best available CF ingress; egress can change |
+| Polymarket web / CLOB / Gamma / Perps | `CF HKG Auto` | Explicit measured-HK proxyIP pool |
+| Futu / moomoo domains and macOS Futu OpenD | `Futu`: `CF Edge Auto` → `DIRECT` | CF preferred; direct on failed CF health checks |
+| IBKR overseas sites and trading gateways | `UX Only` in both profiles | `192.3.243.194`; no us1 fallback |
 | IBKR mainland trading gateway (`*.ibllc.com.cn`) | `DIRECT` | DIRECT |
+| Domestic services | literal `DIRECT` rules | DIRECT |
 | Ads | `AdBlock` | REJECT, switchable to DIRECT |
-| Cloudflare fallback | `CF Edge Auto` | Best of direct/CT/CU/CM EdgeTunnel ingress |
 | Everything unmatched | literal `FINAL,DIRECT` | DIRECT |
 
-AI rules are evaluated before Google, Microsoft and Global rule sets. Google AI
-(Gemini, AI Studio, NotebookLM, `generativelanguage.googleapis.com`) is inside
-the `AI` policy: those endpoints are geo-gated and answer "Gemini isn't
-currently supported in your country" whenever the exit country is not on
-Google's list. `CF Edge Auto` cannot serve them, because its Cloudflare Worker
-exits can change country when url-test selects a different PoP. These rules
-must also stay ahead of the inline `DOMAIN-SUFFIX,google.com,CF Edge Auto`
-rule -- Surge stops at the first match, so a Google-AI set placed after it is
-dead. `scripts/check-rules.sh` enforces both the policy and the ordering.
+Precise installer rules run before the Claude and other AI rules. Claude's
+seven first-party suffixes run before the mixed `ai-extra.list`: `anthropic.com`,
+`claude.ai`, `claude.com`, `claudeusercontent.com`, `claude.site`,
+`claudemcpclient.com` and `claudemcpcontent.com`. Shared third-party domains
+are not added to the us1 allowlist. Google AI rules retain priority over broad
+Google, Microsoft and Global sets. Inline entries remain usable if remote
+rule lists cannot refresh.
 
-## Antigravity / Gemini CLI routing
+## Separate fixed exits and the us1 budget
 
-`agy` uses `daily-cloudcode-pa.googleapis.com`; Gemini CLI and other builds
-also use `cloudcode-pa.googleapis.com` and the explicit sandbox endpoints in
-`rules/google-ai.list`. Both profiles pin these to `AI` before the broad
-`googleapis.com` rule. Antigravity product and feature-control domains
-(`antigravity.google`, `antigravity.goog`, `antigravity-unleash.goog`) use the
-same policy. Inline entries keep this working with stale remote rule caches.
-
-On September 17, `agy -p 'hello'` failed with `FAILED_PRECONDITION` while its
-inference request matched the broad Google rule. A per-policy ipinfo probe
-measured `CF Edge Auto` at `104.28.163.84` / HK despite the selected member's
-US label; `AI` measured `35.212.192.172` / US. An ordinary ipinfo visit reports
-its own route, so use policy-specific probes and actual agy request logs.
-`scripts/check-routing.py` checks CLI routing and inline priority.
-
-## Why the AI exit IP cannot move
-
-`US Only` used to be a `fallback` group whose tail held `US TUIC 01` and
-`US HY2 Relay 01`. Both land on `192.3.243.194`, so any failover silently moved
-the public IP that ChatGPT and Claude observe. The group now holds only the
-three transports that terminate on `35.212.192.172`:
+`Claude = select, US Only` is the only rule-facing path to us1. The us1 pool
+retains its three transports:
 
 | Member | Path to us1 | Transport |
 |---|---|---|
@@ -62,20 +58,44 @@ three transports that terminate on `35.212.192.172`:
 | `US HY2 01` | `139.196.52.175:36000`, DNAT'd to `us1:4444` | QUIC |
 | `US HTTPS 01` | direct to `us1:443` | TCP |
 
-Surge uses a `smart` group to select among these paths using real connection
-quality and failure handling. Shadowrocket retains a compatible `url-test`
-group. Both keep the same exit IP. `scripts/check-rules.sh` fails the build if
-a non-us1 member is added back. A client's remembered `AI` selection must be
-`US Only` to use automatic selection; a remembered individual proxy bypasses it.
-Basic Smart groups require Surge Mac 5.7.0+ or iOS 5.11.0+ with Smart unlocked.
+Surge uses `smart` and Shadowrocket uses `url-test` within that pool.
+`AI = select, UX Only` keeps other AI services on the UX exit. `Download`,
+`YouTube`, `Proxy`, `Fastest` and other general groups must have no direct or
+nested us1 member. Merely changing their first/default member would leave
+manual selections and automatic failover able to consume us1 traffic.
+The routing checks enforce both recursive group isolation and the exact
+Claude rule allowlist. IBKR is deliberately included in the UX migration;
+it is not an exception to Claude-only us1 routing.
 
-The direct line to us1 measures around 10% packet loss, which TCP handles badly,
-so the two QUIC members are listed first and normally win the test. Keeping the
-Shanghai relay as a member is worthwhile despite its higher latency: it is a
-second, independent path to the same exit.
+This reduces usage of the monthly 200 GB us1 allowance but is not a hard
+quota. Claude attachments, proxy health checks, other clients and services on
+the server can still consume traffic. A hard limit requires the provider's
+billing period and traffic-counting rules, server-wide accounting and an
+explicit cutoff policy. No monthly cutoff or new monitoring service is
+installed by this routing change.
 
-`US TUIC 01` and `US HY2 Relay 01` remain available in `US Auto`, `Fastest` and
-`Proxy` for non-AI traffic, where a changing exit IP does not matter.
+Keep Surge in rule mode. The 2026-11-01 audit found global proxy mode
+selecting `US HTTPS 02`, which sent unrelated traffic to us1 despite the rules; it was
+returned to rule mode. Check remembered group selections after reload and
+reconnect existing sessions as needed: changing rules does not move an
+already established connection. Live egress and service checks are required
+before calling a new profile deployed.
+
+## Antigravity / Gemini CLI routing
+
+`agy` uses `daily-cloudcode-pa.googleapis.com`; Gemini CLI and other builds
+also use `cloudcode-pa.googleapis.com` and the explicit sandbox endpoints in
+`rules/google-ai.list`. Both profiles pin these to `AI` → `UX Only` before
+the broad `googleapis.com` rule. Antigravity product and feature-control
+domains (`antigravity.google`, `antigravity.goog`, `antigravity-unleash.goog`)
+use the same fixed UX exit. They have no CF or us1 fallback.
+
+Historical evidence from September 17: `agy -p 'hello'` failed with
+`FAILED_PRECONDITION` while its inference request used the broad Google rule.
+`CF Edge Auto` measured `104.28.163.84` / HK despite the selected node's US
+label; the then-current `AI` policy measured us1 `35.212.192.172` / US.
+Those measurements explain why a stable exit matters; they do not verify the
+new UX path. Use policy-specific probes and actual agy request logs.
 
 ## Futu routing
 
@@ -117,8 +137,8 @@ All additions use the existing `Futu` group: CF first, DIRECT on failed health
 checks. This preserves the requested fallback, which can still produce a
 mainland exit; changing that behavior is a separate policy choice.
 
-The shared CF pool, fixed AI exit, exchange policies and `FINAL,DIRECT` stay
-unchanged. Public HTTP probes and proxy connection logs do not validate an
+The Futu rules leave the shared CF pool, exchange policies and
+`FINAL,DIRECT` unchanged. Public HTTP probes and proxy connection logs do not validate an
 authenticated order; no test order is submitted as part of routing validation.
 
 Validation on 2026-10-08: local routing checks passed for both profiles; Mac
@@ -133,20 +153,21 @@ probe without OpenD process identity matched `124.156.234.0/24` and used
 
 ## Installation downloads and Muse
 
-`Download` defaults to `US HY2 02`, with `US Only`, `US HY2 01` and
-`US HTTPS 01` available as alternatives. Exact inline host rules precede the
-broad AI and GitHub sets: `persistent.oaistatic.com`, `releases.openai.com`,
-`downloads.claude.ai`, `registry.npmjs.org`, `release-assets.githubusercontent.com`,
+`Download = select, UX Only, CF Edge Auto` excludes every us1 transport.
+Exact inline host rules precede broad Claude, AI, Google and GitHub rules:
+`persistent.oaistatic.com`, `releases.openai.com`, `downloads.claude.ai`,
+`herdr.dev`, `registry.npmjs.org`, `release-assets.githubusercontent.com`,
 `objects.githubusercontent.com` and `github-releases.githubusercontent.com`.
-API and account traffic continues to use `AI`; shared cloud/CDN suffixes are
-not treated as download-only services. Older Claude versions using
-`storage.googleapis.com` retain the existing Google route.
+Thus Claude's installer uses the download policy while its API and online
+services use `Claude`. Other AI account/API traffic uses `AI` → `UX Only`.
+Shared cloud/CDN suffixes are not treated as download-only services;
+`storage.googleapis.com` follows the Google route to UX.
 
-The September 22 comparison found the direct HY2 transport faster on the same
-official files and verified that it retains the HTTPS path's US exit. Short
-Range samples are evidence for the initial selection, not a sustained-bandwidth
-guarantee; Smart optimizes connection quality rather than download throughput.
-See the [measurements and review](docs/reviews/2026-09-22-routing-review.md).
+The [September 22 measurements and review](docs/reviews/2026-09-22-routing-review.md)
+describe the former us1 download setup. That selection is superseded by the
+200 GB budget requirement. Short Range samples never established sustained
+whole-download bandwidth. Recent large Git transfers have also exposed CF
+stream failures, so UX is the default and CF remains a manual alternative.
 
 Muse's first-party domains use the inline `DOMAIN-SUFFIX,muse.ai,AI` rule,
 also maintained in `rules/ai-extra.list`. The observed sign-in chain redirects
@@ -160,12 +181,12 @@ access is a separate check.
 Unknown domains continue to use `FINAL,DIRECT`, as explicitly retained on
 September 22. New services still need a maintained domain override.
 
-## Why AI traffic is not chained through Cloudflare
+## Historical us1 chaining measurements
 
-Routing the US-pinned AI exit through the Cloudflare EdgeTunnel ingress looks
-attractive, because it would keep the egress IP on us1 while replacing the slow
-mainland-to-US leg. It was tried and **measured to be slower**, so it is not in
-this profile. Time to a completed `CONNECT` through the us1 HTTPS proxy, from a
+Before the Claude/UX split, routing the US-pinned AI exit through the
+Cloudflare EdgeTunnel ingress was tested as an alternative to the direct
+mainland-to-US leg. It was **measured to be slower**. No such chain is
+configured. Time to a completed `CONNECT` through the us1 HTTPS proxy from a
 mainland home line, bypassing the local Surge tunnel (2026-09-06, 6 samples):
 
 | Path | median | min |
@@ -176,7 +197,7 @@ mainland home line, bypassing the local Surge tunnel (2026-09-06, 6 samples):
 
 Those September 6 probes measured ingress colos, not final exit countries.
 The September 11 per-policy exit measurements are recorded in
-[private/nodes.md](private/nodes.md): Direct/CM currently exit in Singapore,
+[private/nodes.md](private/nodes.md): Direct/CM then exited in Singapore,
 CT/CU in the US. Anycast placement and Worker exits can change over time.
 
 For a connection that already crossed the Pacific to reach a US colo, chaining
@@ -222,7 +243,8 @@ the Futu fallback group. On 2026-10-12, Surge CF Edge Auto changed from Smart
 to native url-test: Smart ignores interval and always tests every five minutes.
 For seven leaves, baseline scheduled CF tests fall from 2,016 to 84 per day per
 client (24 times fewer), excluding failures, network changes and manual tests.
-The fixed-US AI Smart group is unchanged. CF leaves explicitly use
+The Claude-only `US Only` Smart group retains its existing test behavior.
+CF leaves explicitly use
 `test-url=http://www.gstatic.com/generate_204`: the pinned Worker synthesizes
 204 responses for `cp.cloudflare.com`, so that address cannot validate external
 forwarding. Shadowrocket uses its existing group-level gstatic test URL.
@@ -364,7 +386,7 @@ reject list only on macOS.
 
 The node pool assignments were imported from `surgeconf-260830.conf`. Ingress
 hostnames do not prove egress country; verify every node's public exit IP before
-depending on the `AI` US-only guarantee. See `private/nodes.md` for the items
+depending on either fixed-egress guarantee. See `private/nodes.md` for the items
 that still require verification.
 
 ## Validation
@@ -397,7 +419,7 @@ preview use `fail_open=false`: when the dedicated account exhausts its free
 quota, EdgeTunnel is allowed to stop until the quota resets. The old
 `edge.fallback.page` ingress is retired after the new client path is verified.
 
-Surge routes `*.argotunnel.com` through the native `US Only` pool before
+Surge routes `*.argotunnel.com` through the native `UX Only` pool before
 broad lists, so business Cloudflare Tunnel connectors do not depend on
 EdgeTunnel's free quota. The desktop tunnel exception is intentionally not
 added to the phone profile.
@@ -413,8 +435,8 @@ directory mode at `0700` and each credential file at `0600`.
 
 In Surge or Shadowrocket, open the `YouTube` policy group and choose:
 
-- `CF Edge Auto` (default): fastest CF ingress; country may switch SG/US.
-- `US Auto`: existing US node pool.
+- `UX Only` (template default): fixed `192.3.243.194` exit; no us1 member.
+- `CF Edge Auto`: fastest CF ingress; country may switch SG/US.
 - `KR Auto`: verified South Korean HTTPS exit.
 - `CF SG Auto` / `CF US Auto`: CF members measured in Singapore / the US.
 
@@ -424,8 +446,9 @@ YouTube rules run before broad Google and domestic lists, including inline
 API/video/thumbnail rules when remote lists are unavailable. Reconnect an
 existing video stream after changing the selection; account settings and
 YouTube's own IP classification can also affect the displayed country.
-No Japan option is advertised: the former JP HTTPS node measured as US and
-has been renamed. Country labels on CF nodes reflect the 2026-09-11 measurements,
+No Japan option is advertised. The former JP-labelled HTTPS node actually
+used us1 and is no longer a general-purpose candidate. Country labels on CF
+nodes reflect the 2026-09-11 measurements,
 not guaranteed permanent locations; see the node inventory for the evidence.
 
 `rules/proxy-extra.list` covers Backpack, OKX, Bitget,
@@ -507,7 +530,7 @@ than immediately. Blocking QUIC makes the TCP fallback instant.
 
 ## Outbound mode is the first thing to check
 
-Measured on one iPhone, same WeChat session, minutes apart (Surge HTTP API
+Historical measurement on one iPhone, same WeChat session, minutes apart (Surge HTTP API
 `/v1/requests/recent`, n=180 rule-mode requests, n=50 proxy-mode requests):
 
 | | `mode: rule` (DIRECT) | `mode: proxy` (global `Fastest` -> us1) |
@@ -519,9 +542,11 @@ Measured on one iPhone, same WeChat session, minutes apart (Surge HTTP API
 
 In global proxy mode every request logs `rule: None` and
 `[Rule] Global proxy outbound mode`, and domestic traffic crosses the Pacific
-twice. The us1 line carries roughly 10% packet loss, so a 3.7 KB WeChat video
-chunk took 6.5 s. Rule matching itself is not the bottleneck in either mode:
+twice. The us1 line then showed roughly 10% packet loss, and a 3.7 KB WeChat
+video chunk took 6.5 s. Rule matching itself is not the bottleneck in either mode:
 on fresh connections it measures p50 8.6 ms, max 28 ms across the full rule set.
 
 To route one app through a proxy, add a rule for it. Do not switch the outbound
 mode globally.
+
+2026-10-24 arbitrage repair: `morpho.org` explicitly uses `CF Edge Auto`. The previous route failed TLS; the original GraphQL reader now returns a complete 169-market, two-page result and the forum RSS succeeds. The active Mac profile was backed up and changed by these two lines only; unrelated source changes were preserved and not published. Policy-specific external IP measured Singapore, despite the selected member label containing US. Preserve this exception in the next managed-profile publication.

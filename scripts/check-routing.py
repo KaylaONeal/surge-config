@@ -7,6 +7,16 @@ from urllib.parse import parse_qs, urlsplit
 
 ROOT = Path(__file__).resolve().parent.parent
 PREFIX = 'https://raw.githubusercontent.com/KaylaONeal/surge-config/main/'
+US1_LEAVES = {'US HY2 02', 'US HY2 01', 'US HTTPS 01'}
+UX_LEAVES = {'UX HY2 Direct'}
+PINNED_ENDPOINTS = {
+    'US HTTPS 01': ('https', 'us1.fallback.page', '443'),
+    'US HY2 01': ('hysteria2', '139.196.52.175', '36000'),
+    'US HY2 02': ('hysteria2', 'us2.fallback.page', '4444'),
+    'UX HY2 Direct': ('hysteria2', '192.3.243.194', '5000'),
+}
+CLAUDE_DOMAINS = {'anthropic.com', 'claude.ai', 'claude.com', 'claudeusercontent.com',
+                  'claude.site', 'claudemcpclient.com', 'claudemcpcontent.com'}
 
 
 def check(profile):
@@ -23,6 +33,7 @@ def check(profile):
             sections[section].append(line)
     policies = {'DIRECT', 'REJECT'}
     groups = {}
+    proxies = {}
     for section in ('[Proxy]', '[Proxy Group]'):
         for line in sections[section]:
             name, value = map(str.strip, line.split('=', 1))
@@ -30,6 +41,16 @@ def check(profile):
             policies.add(name)
             if section == '[Proxy Group]':
                 groups[name] = [p.strip() for p in value.split(',')]
+            else:
+                proxies[name] = [p.strip() for p in value.split(',')]
+    for name, endpoint in PINNED_ENDPOINTS.items():
+        assert tuple(proxies.get(name, [])[:3]) == endpoint, (profile.name, name, 'pinned endpoint changed; remeasure egress')
+    assert 'sni=hy.fallback.page' in proxies['UX HY2 Direct']
+    for name, parts in proxies.items():
+        if (parts[1] in {'us1.fallback.page', 'us2.fallback.page', '35.212.192.172'}
+                or parts[1:3] == ['139.196.52.175', '36000']):
+            assert name in US1_LEAVES, (profile.name, name, 'untracked us1 proxy alias')
+        assert not any(re.match(r'underlying-proxy\s*=', p) for p in parts), (profile.name, name, 'proxy chaining needs quota-aware review')
     for name, parts in groups.items():
         members = [p for p in parts[1:] if '=' not in p]
         assert members and all(p in policies for p in members), (name, members)
@@ -50,19 +71,25 @@ def check(profile):
             for line in sections[section]:
                 for url in re.findall(r'(?:^|,\s*)(?:test-url|internet-test-url|proxy-test-url|url)\s*=\s*([^,\s]+)', line):
                     assert url.startswith('http://'), (profile.name, 'Mac 5.7.6 needs HTTP health-test URLs')
-    pinned = {'US HY2 02', 'US HY2 01', 'US HTTPS 01'}
-
     def exits(name):
         if name not in groups:
             return {name}
         return set().union(*(exits(p) for p in groups[name][1:] if '=' not in p))
 
-    for name in ('AI', 'US Only', 'Download'):
-        assert exits(name) == pinned, (profile.name, name, 'must retain only fixed-us1 transports')
+    for name in ('Claude', 'US Only'):
+        assert exits(name) == US1_LEAVES, (profile.name, name, 'must retain only fixed-us1 transports')
+    for name in groups:
+        if name not in {'Claude', 'US Only'}:
+            assert not exits(name) & US1_LEAVES, (profile.name, name, 'non-Claude group can consume us1 quota')
+    assert not {'US HTTPS Auto', 'US HTTPS 02', 'US TUIC 01', 'US HY2 Relay 01'} & policies
     assert groups['US Only'][0] == ('smart' if profile.name == 'surge.conf' else 'url-test')
-    assert groups['AI'][:2] == ['select', 'US Only']
-    assert groups['Download'][:2] == ['select', 'US HY2 02']
-    assert groups['YouTube'] == ['select', 'US Auto', 'CF US Auto', 'CF Edge Auto', 'KR Auto', 'CF SG Auto']
+    assert groups['Claude'] == ['select', 'US Only']
+    assert exits('UX Only') == UX_LEAVES, (profile.name, 'UX must retain only verified 192.3.243.194 transports')
+    assert exits('US Auto') == UX_LEAVES
+    assert exits('Fastest') == UX_LEAVES | {'KR HTTPS 01'}
+    assert groups['AI'] == ['select', 'UX Only']
+    assert groups['Download'] == ['select', 'UX Only', 'CF Edge Auto']
+    assert groups['YouTube'] == ['select', 'UX Only', 'CF Edge Auto', 'KR Auto', 'CF SG Auto', 'CF US Auto']
     cf_leaves = {line.split('=', 1)[0].strip() for line in sections['[Proxy]']
                  if line.startswith('CF Edge ')}
     assert len(cf_leaves) == 7, (profile.name, 'must retain all seven CF ingress nodes')
@@ -99,6 +126,11 @@ def check(profile):
         fields = [p.strip() for p in line.split(',')]
         policy = fields[1] if fields[0] == 'FINAL' else fields[2]
         assert policy in policies, (profile.name, 'undefined policy', line)
+        # Check every original rule, including remote providers: no unseen list
+        # may route arbitrary destinations to us1, even through nested groups.
+        if exits(policy) & US1_LEAVES:
+            assert (fields[0] == 'DOMAIN-SUFFIX' and fields[1] in CLAUDE_DOMAINS
+                    and policy == 'Claude' and len(fields) == 3), (profile.name, 'us1 rule is not an explicit Claude allowlist entry', line)
         if fields[0] == 'RULE-SET' and fields[1].startswith(PREFIX):
             local = ROOT / fields[1][len(PREFIX):]
             assert local.is_file(), local
@@ -139,19 +171,21 @@ def check(profile):
         **dict.fromkeys(('ntfyx.me', 'staging.ntfyx.me', 'api.ntfyx.me',
                         'api.staging.ntfyx.me', 'app.ntfyx.me', 'app.staging.ntfyx.me',
                         'gateway.ntfyx.me', 'gateway.staging.ntfyx.me', 'status.ntfyx.me',
-                        'quant.fallback.page', 'share.fallback.page',
+                        'quant.fallback.page', 'llm-api.fallback.page', 'share.fallback.page',
                         'arb.fallback.page', 'discord.fallback.page',
-                        'config.fallback.page'), 'US Only'),
+                        'config.fallback.page'), 'UX Only'),
         'notntfyx.me': 'DIRECT', 'ntfyx.me.example': 'DIRECT',
         'quant.fallback.page.example': 'DIRECT', 'unrelated.fallback.page': 'DIRECT',
+        'llm-api.fallback.page.example': 'DIRECT', 'sub.llm-api.fallback.page': 'DIRECT',
         **dict.fromkeys(google_ai_hosts, 'AI'),
         **dict.fromkeys(download_hosts, 'Download'),
         'muse.ai': 'AI', 'auth.muse.ai': 'AI', 'api.muse.ai': 'AI',
         'www.facebook.com': 'AI', 'www.instagram.com': 'AI', 'auth.meta.com': 'AI',
         'notmuse.ai': 'DIRECT', 'muse.ai.example': 'DIRECT',
-        'api.openai.com': 'AI', 'api.anthropic.com': 'AI',
+        'api.openai.com': 'AI', 'api.anthropic.com': 'Claude',
         'cdn.oaistatic.com': 'AI', 'notreleases.openai.com': 'AI',
-        'storage.googleapis.com': 'CF Edge Auto',
+        'storage.googleapis.com': 'UX Only',
+        'androidpublisher.googleapis.com': 'UX Only',
         'releases.openai.com.example': 'DIRECT',
         'sub.registry.npmjs.org': 'DIRECT',
         'notherdr.dev': 'DIRECT', 'herdr.dev.example': 'DIRECT',
@@ -180,8 +214,12 @@ def check(profile):
         'www.bytick.com': 'Bybit', 'www.by-tick.com': 'Bybit',
         'fh-static.bycsi.com': 'Bybit',
         'notbybit.com': 'DIRECT', 'bybit.com.example': 'DIRECT',
-        'www.google.com': 'CF Edge Auto', 'maps.googleapis.com': 'CF Edge Auto',
-        'chatgpt.com': 'AI', 'claude.ai': 'AI',
+        'www.google.com': 'UX Only', 'maps.googleapis.com': 'UX Only',
+        'www.gstatic.com': 'UX Only', 'lh3.googleusercontent.com': 'UX Only',
+        'chatgpt.com': 'AI', 'claude.ai': 'Claude',
+        **dict.fromkeys(('ibkr.com', 'www.interactivebrokers.com', 'gateway.ibllc.com'), 'UX Only'),
+        'gateway.ibllc.com.cn': 'DIRECT', 'notibkr.com': 'DIRECT', 'ibkr.com.example': 'DIRECT',
+        'morpho.org': 'CF Edge Auto', 'api.morpho.org': 'CF Edge Auto',
         'www.taobao.com': 'DIRECT', 'kdb.corp.kuaishou.com': 'DIRECT',
         'adlp.corp.kuaishou.com': 'REJECT', 'unknown.example': 'DIRECT',
         'notbackpack.exchange': 'DIRECT', 'backpack.exchange.example': 'DIRECT',
@@ -232,11 +270,22 @@ def check(profile):
         assert process_rule not in original, 'macOS process rule must not enter Shadowrocket'
     if profile.name == 'surge.conf':
         cases.update(dict.fromkeys(('argotunnel.com', 'region1.v2.argotunnel.com',
-                                   'region2.v2.argotunnel.com'), 'US Only'))
-        tunnel_rule = 'DOMAIN-SUFFIX,argotunnel.com,US Only'
+                                   'region2.v2.argotunnel.com'), 'UX Only'))
+        tunnel_rule = 'DOMAIN-SUFFIX,argotunnel.com,UX Only'
         assert original.count(tunnel_rule) == 1, (profile.name, 'missing native tunnel route')
         assert all(original.index(tunnel_rule) < i for i, line in enumerate(original)
                    if line.startswith(('RULE-SET,', 'DOMAIN-SET,'))), (profile.name, 'Tunnel route shadowed')
+    for domain in CLAUDE_DOMAINS:
+        rule = f'DOMAIN-SUFFIX,{domain},Claude'
+        assert original.count(rule) == 1, (profile.name, 'missing/duplicate Claude rule', domain)
+        assert all(original.index(rule) < i for i, line in enumerate(original)
+                   if any(provider in line for provider in ('rules/ai-extra.list', 'rules/proxy-extra.list',
+                          'ChinaMax_Domain.list', '/ruleset/direct.txt', '/ruleset/proxy.txt',
+                          'Global_Domain.list', '/Global/Global.list'))), (profile.name, 'Claude rule shadowed', domain)
+        cases[domain] = cases[f'api.{domain}'] = 'Claude'
+        cases[f'not{domain}'] = cases[f'{domain}.example'] = 'DIRECT'
+    cases['notdownloads.claude.ai'] = 'Claude'
+    cases['downloads.claude.ai.example'] = 'DIRECT'
     for host, expected in cases.items():
         assert route(host) == expected, (profile.name, host, route(host), expected)
     assert original[-1] == 'FINAL,DIRECT', (profile.name, 'unknown traffic must stay direct')

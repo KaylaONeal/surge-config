@@ -1,7 +1,9 @@
 # NAME: AI-Extra
 # DESC: Maintained AI/LLM product and exact dependency domains
-# UPDATED: 2026-09-22
+# UPDATED: 2026-11-01
 # TYPE: Surge RULE-SET (Shadowrocket compatible)
+# POLICY: AI -> UX Only. Inline Claude rules in both profiles take priority
+# over this mixed list; exact installer rules take priority over Claude.
 
 # --- OpenAI adjacent ---
 DOMAIN-SUFFIX,openai.com
