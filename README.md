@@ -26,7 +26,7 @@ path are registered in `infra show ux-node`.
 | ChatGPT / OpenAI, Google AI and other AI services | `AI` → `UX Only` | `192.3.243.194` |
 | Google services | `UX Only` | `192.3.243.194` |
 | Codex / Claude installers, npm and GitHub release assets | `Download` | `UX Only` first; `CF Edge Auto` selectable |
-| YouTube web, API, video and thumbnails | `YouTube` | `UX Only` first; CF/KR selectable |
+| YouTube web, API, video and thumbnails | `YouTube` → `CF Edge Auto` | CF pool only; no UX/us1 candidate |
 | Named self-hosted services; Mac Cloudflare Tunnel connectors | `UX Only` | Native UX transport; no CF relay dependency |
 | Bybit login, API, WebSocket and assets | `Bybit` | `KR HTTPS 01`; no cross-country fallback |
 | Binance web, API, WebSocket and assets | `Binance` | `KR HTTPS 01`; no cross-country fallback |
@@ -431,32 +431,26 @@ the deployed module checksum are in [cloudflare/edgetunnel/README.md](cloudflare
 Set `SURGE_CONFIG_HOME` to override this local credential directory. Keep the
 directory mode at `0700` and each credential file at `0600`.
 
-## YouTube region selection and crypto routing
+## YouTube and crypto routing
 
-In Surge or Shadowrocket, open the `YouTube` policy group and choose:
+Both profiles use `YouTube = select, CF Edge Auto`. The group has one member,
+so a remembered UX or KR selection cannot keep video traffic on another pool
+after the profile updates. This fixes the policy, not the exit country or speed:
+CF egress can change, and latency selection does not guarantee faster video.
 
-- `UX Only` (template default): fixed `192.3.243.194` exit; no us1 member.
-- `CF Edge Auto`: fastest CF ingress; country may switch SG/US.
-- `KR Auto`: verified South Korean HTTPS exit.
-- `CF SG Auto` / `CF US Auto`: CF members measured in Singapore / the US.
-
-The manual group uses Surge's documented
-[select policy](https://manual.nssurge.com/policy-groups/overview.html).
 YouTube rules run before broad Google and domestic lists, including inline
-API/video/thumbnail rules when remote lists are unavailable. Reconnect an
-existing video stream after changing the selection; account settings and
-YouTube's own IP classification can also affect the displayed country.
-No Japan option is advertised. The former JP-labelled HTTPS node actually
-used us1 and is no longer a general-purpose candidate. Country labels on CF
-nodes reflect the 2026-09-11 measurements,
-not guaranteed permanent locations; see the node inventory for the evidence.
+API/video/thumbnail rules when remote lists are unavailable. Thus YouTube uses
+CF while other Google services retain UX. Reconnect an existing video stream
+after updating the profile; account settings and YouTube's IP classification
+can also affect the displayed country. X uses CF, and Futu retains CF first
+with DIRECT on failed CF health checks.
 
 `rules/proxy-extra.list` covers Backpack, OKX, Bitget,
 Coinbase, Kraken, wallets, DeFi, explorers and market-data sites. The
 [Backpack API](https://docs.backpack.exchange/) and WebSocket subdomains
 are covered by `backpack.exchange`; wallet links use `backpack.app`.
 These rules explicitly target `CF Edge Auto`, independently of the manual
-`Proxy` and `YouTube` selections. No shared CDN suffix is broadly proxied.
+`Proxy` selection. No shared CDN suffix is broadly proxied.
 
 ## Bybit IP restriction
 
