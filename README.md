@@ -26,7 +26,7 @@ path are registered in `infra show ux-node`.
 | ChatGPT / OpenAI, Google AI and other AI services | `AI` → `UX Only` | `192.3.243.194` |
 | Google services | `UX Only` | `192.3.243.194` |
 | Codex / Claude installers, npm and GitHub release assets | `Download` | `UX Only` first; `CF Edge Auto` selectable |
-| YouTube web, API, video and thumbnails | `YouTube` → `CF Edge Auto` | CF pool only; no UX/us1 candidate |
+| YouTube web, API, video and thumbnails | `YouTube` | `UX Only` by default; `CF Edge Auto` selectable; no us1 candidate |
 | Named self-hosted services; Mac Cloudflare Tunnel connectors | `UX Only` | Native UX transport; no CF relay dependency |
 | Bybit login, API, WebSocket and assets | `Bybit` | `KR HTTPS 01`; no cross-country fallback |
 | Binance web, API, WebSocket and assets | `Binance` | `KR HTTPS 01`; no cross-country fallback |
@@ -433,17 +433,18 @@ directory mode at `0700` and each credential file at `0600`.
 
 ## YouTube and crypto routing
 
-Both profiles use `YouTube = select, CF Edge Auto`. The group has one member,
-so a remembered UX or KR selection cannot keep video traffic on another pool
-after the profile updates. This fixes the policy, not the exit country or speed:
-CF egress can change, and latency selection does not guarantee faster video.
+Both profiles use `YouTube = select, UX Only, CF Edge Auto`. New selections
+start with `UX Only`; `CF Edge Auto` remains a manual alternative. Existing
+clients can remember their previous CF choice after an update, so select
+`UX Only` once in the YouTube group when moving back to the default.
+Neither option uses us1.
 
 YouTube rules run before broad Google and domestic lists, including inline
-API/video/thumbnail rules when remote lists are unavailable. Thus YouTube uses
-CF while other Google services retain UX. Reconnect an existing video stream
-after updating the profile; account settings and YouTube's IP classification
-can also affect the displayed country. X uses CF, and Futu retains CF first
-with DIRECT on failed CF health checks.
+API/video/thumbnail rules when remote lists are unavailable. Reconnect an
+existing video stream after changing the selection. Exit IP, country and
+account checks can affect YouTube behavior; changing the route does not
+guarantee membership restoration. X uses CF, and Futu retains CF first with
+DIRECT on failed CF health checks.
 
 `rules/proxy-extra.list` covers Backpack, OKX, Bitget,
 Coinbase, Kraken, wallets, DeFi, explorers and market-data sites. The

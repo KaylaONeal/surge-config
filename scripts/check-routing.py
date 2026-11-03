@@ -89,7 +89,7 @@ def check(profile):
     assert exits('Fastest') == UX_LEAVES | {'KR HTTPS 01'}
     assert groups['AI'] == ['select', 'UX Only']
     assert groups['Download'] == ['select', 'UX Only', 'CF Edge Auto']
-    assert groups['YouTube'] == ['select', 'CF Edge Auto'], 'Daily video must not retain a cached UX choice'
+    assert groups['YouTube'] == ['select', 'UX Only', 'CF Edge Auto'], 'YouTube defaults to UX with CF selectable'
     cf_leaves = {line.split('=', 1)[0].strip() for line in sections['[Proxy]']
                  if line.startswith('CF Edge ')}
     assert len(cf_leaves) == 7, (profile.name, 'must retain all seven CF ingress nodes')
